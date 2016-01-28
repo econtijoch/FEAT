@@ -5,8 +5,8 @@ require(dplyr)
 require(DT)
 require(ggplot2)
 require(vegan)
+# source('helper_funcitons.R')
 ggsave <- ggplot2::ggsave; body(ggsave) <- body(ggplot2::ggsave)[-2]
-source('helper_functions.R')
 options(digits = 4)
 
 # Define server logic
