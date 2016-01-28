@@ -6,6 +6,7 @@ require(DT)
 require(ggplot2)
 require(vegan)
 require(lazyeval)
+require(phyloseq)
 
 # source('helper_funcitons.R')
 ggsave <- ggplot2::ggsave; body(ggsave) <- body(ggplot2::ggsave)[-2]
@@ -127,7 +128,7 @@ shinyServer(function(input, output, session) {
   # Table now has experiment-specific samples from the original biom file, all OTUs that pass preprocessing filters, and all metadata
   biom_table <- eventReactive(input$normalize_filter, {
     validate(need(!is.null(input$input_otu_table) && !is.null(input$mapping_file), "Please load an OTU table and mapping file."))
-    output <- merge(biom_normalized_filtered(), mapping()[,c(-1,-2,-3)])
+    output <- merge(biom_normalized_filtered(), mapping()[,c(-2,-3)])
     return(output)
   })
 
