@@ -1,9 +1,3 @@
-# Load required packages
-require(dplyr)
-require(lazyeval)
-require(rhdf5)
-require(biom)
-require(ggplot2)
 
 # Work with BIOM table and filter OTUs that only appear at most x given times in any sample
 absolute_filter_biom_table <- function(biom_table, minimum_count) {
