@@ -1025,8 +1025,8 @@ shinyServer(function(input, output, session) {
   # Populate table for Metrics
   metric_table_taxa <- reactive({
     validate(need(!is.null(input$input_otu_table) && !is.null(input$mapping_file), "Please load an OTU table and mapping file."))
-    Item <- c("Input OTU Table", "# OTUs in raw table", "Minimum Absolute Count Filter",
-              "# OTUs After Minimum Absolute Count Filter", "Mapping File", "Metadata Category to Select FMT Details",
+    Item <- c("Input OTU Table", "# OTUs in raw table",
+              "Mapping File", "Metadata Category to Select FMT Details",
               "Donor", "# Donor Samples", "Recipient", "# Recipient Samples", "Post-FMT Recipient", "# Post-FMT Recipient Samples", "Minimum Relative Abundance Filter", "# OTUs After Minimum Relative Abundance Filter",
               "Fleeting OTU Filter Threshold", "# OTUs After Fleeting OTU Filter (Final # OTUs)", "Comparison Metric",
               "Exclude OTUs Found Only in Post-FMT Samples or Shared",
@@ -1034,8 +1034,8 @@ shinyServer(function(input, output, session) {
               "N_post_fmt_unique: # Unique to post-fmt (should be low/zero)", "N_shared: # shared across donor and recipient throughout",
               "FMT_don: # from donor in post-FMT", "D_Frac_FMT: proportion of donor in post-FMT", "FMT_FracD: proportion of post-FMT from donor",
               "FMT_rec: # from recipient in post-FMT", "R_Frac_FMT: proportion of recipient in post-FMT", "FMT_FracR: propotion of post-FMT from recipient")
-    Value <- c(input$input_otu_table$name, num_otus_raw(), input$min_count,
-               num_otus_after_abs_filter(), input$mapping_file$name, input$comparison,
+    Value <- c(input$input_otu_table$name, num_otus_raw(),
+               input$mapping_file$name, input$comparison,
                donor(), N_donor_samples(), recipient(), N_recipient_samples(), post_fmt(), N_post_fmt_samples(), input$min_OTU_fraction, num_otus_preprocess(),
                input$min_fraction, N_otus_after_nonzero_filter(), input$comparison_test,
                input$remove_OTUs_test_specific,
