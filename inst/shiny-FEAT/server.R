@@ -1,3 +1,4 @@
+require(phyloseq)
 require(rhdf5)
 require(biom)
 require(shiny)
@@ -6,7 +7,6 @@ require(DT)
 require(ggplot2)
 require(vegan)
 require(lazyeval)
-require(phyloseq)
 
 # source('helper_funcitons.R')
 ggsave <- ggplot2::ggsave; body(ggsave) <- body(ggplot2::ggsave)[-2]
