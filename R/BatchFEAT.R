@@ -38,8 +38,6 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
 
   metadata_table <- merge(biom_only, mapping, by = 'X.SampleID')
 
-  write.csv(metadata_table, "testing.csv", row.names = F)
-
   cat("Metadata added to OTU table... \n")
 
   # Get total number of OTUs to start
@@ -133,6 +131,9 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
     cat("# of OTUs that remain after this filter:", n_otus_after_fleeting_filter, "\n")
 
     cat("Writing tables...\n")
+    dir.create(file.path(getwd(), 'tables'), showWarnings = FALSE)
+    setwd(file.path(getwd(), 'tables'))
+
     # Make Tables of OTUs unique to each condition
     donor_unique <- anti_join(donor_nonzero_table, recipient_nonzero_table, by = "OTU")
     write.csv(donor_unique, paste(output_name, "donor_unique_table.csv", sep = "_"), row.names = FALSE)
@@ -158,6 +159,8 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
     shared_throughout <- semi_join(shared_pre, post_fmt_nonzero_table, by = "OTU")
     write.csv(shared_throughout, paste(output_name, "shared_throughout_table.csv", sep = "_"), row.names = FALSE)
     cat("shared_throughout.csv written\n")
+
+    setwd('../')
 
     # Get numbers of OTUs unique to each condition
     N_otus_unique_donor <- nrow(donor_unique)
@@ -243,12 +246,15 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
 
     cat("Writing output metric table, plot, & QC...\n")
 
+
     write.csv(output_table, file = paste(output_name,"metric_table.csv", sep = "_"), row.names = FALSE)
     metric_plot <- visualize_metrics_batch(N_otus_unique_donor, N_otus_unique_recipient, N_otus_post_fmt_full, FMT_don, FMT_rec, N_otus_unique_post_fmt, N_otus_shared_throughout, output_name, paste('Full', output_name, sep = "_"))
     metric_plot_excl <- visualize_metrics_batch(N_otus_unique_donor, N_otus_unique_recipient, N_otus_post_fmt_excl, FMT_don, FMT_rec, 0, 0, output_name, paste('Excl', output_name, sep = "_"))
 
     ## QC Tables & Metrics
 
+    dir.create(file.path(getwd(), 'QC'), showWarnings = FALSE)
+    setwd(file.path(getwd(), 'QC'))
 
     QC_absolute_filtered_OTU_distribution <- colSums(biom_only[,-length(biom_only)])
     QC_absolute_filtered_OTU_distribution_plot <- qplot(QC_absolute_filtered_OTU_distribution, xlab = 'Total OTU Representation (Count)', geom='density', main = "Initial OTU Table Count Distribution")
@@ -286,9 +292,10 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
     print(QC_relative_filtered_Sample_Depth_distribution_plot)
     dev.off()
 
+    setwd('../')
 
     setwd('../')
-    cat("Table written to working directory.\n")
+    cat("Finished writing outputs.\n")
 
     cat("-----End Iteration-----\n")
   }
