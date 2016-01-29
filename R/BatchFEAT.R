@@ -146,7 +146,10 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
     post_fmt_full <- post_fmt_nonzero_table
     write.csv(post_fmt_full, paste(output_name, "post_fmt_full_table.csv", sep = "_"), row.names = FALSE)
     cat("post_fmt_full.csv written\n")
-    post_fmt_excl <- semi_join(post_fmt_nonzero_table, union(donor_unique, recipient_unique), by = "OTU")
+
+    post_fmt_donor <- semi_join(post_fmt_nonzero_table, donor_unique, by = "OTU")
+    post_fmt_rec <- semi_join(post_fmt_nonzero_table, recipient_unique, by = "OTU")
+    post_fmt_excl <- bind_rows(post_fmt_donor, post_fmt_rec)
     write.csv(post_fmt_excl, paste(output_name, "pos_fmt_excl_table.csv", sep = "_"), row.names = FALSE)
     cat("post_fmt_excl.csv written\n")
     shared_pre <- semi_join(donor_nonzero_table, recipient_nonzero_table, by = "OTU")
