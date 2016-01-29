@@ -85,8 +85,6 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
     cat("Performing analysis for the following transplant:", transplant_id, "(", comment, ")\n")
     cat("Generating transplant-specific table\n")
     experiment_specific <- split_into_experiment_batch(metadata_table, mapping, metadata_category, donor, recipient, post_fmt)
-    write.csv(experiment_specific, paste(output_name, "experiment_specific_table.csv", sep = "_"), row.names = FALSE)
-
 
     n_donor_samples <- nrow(experiment_specific[experiment_specific[,metadata_category] == donor, ])
     n_recipient_samples <- nrow(experiment_specific[experiment_specific[,metadata_category] == recipient, ])
@@ -104,8 +102,11 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
     normalized_unfiltered <- normalized_filtered_list[[3]] # For QC
     normalized_filtered <- normalized_filtered_list[[1]]
 
+    dir.create(file.path(getwd(), 'Tables'), showWarnings = FALSE)
+    setwd(file.path(getwd(), 'Tables'))
+
     full_table <- inner_join(normalized_filtered, mapping, by = "X.SampleID")
-    write.csv(full_table, paste(output_name, "full_table_plus_metadata.csv", sep = "_"), row.names = FALSE)
+    write.csv(full_table, paste(output_name, "relative_abundance_filtered_experiment_specific_table.csv", sep = "_"), row.names = FALSE)
     n_otus_after_relative_filter <- ncol(full_table) - ncol(mapping[,c(-1,-2,-3)])
 
     cat("# of OTUs that pass this filter:", n_otus_after_relative_filter, '\n')
@@ -130,8 +131,7 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
     cat("# of OTUs that remain after this filter:", n_otus_after_fleeting_filter, "\n")
 
     cat("Writing tables...\n")
-    dir.create(file.path(getwd(), 'tables'), showWarnings = FALSE)
-    setwd(file.path(getwd(), 'tables'))
+
 
     # Make Tables of OTUs unique to each condition
     donor_unique <- anti_join(donor_nonzero_table, recipient_nonzero_table, by = "OTU")
