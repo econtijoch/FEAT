@@ -177,6 +177,9 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
 
     cat("Computing metrics...\n")
 
+    dir.create(file.path(getwd(), 'Individual_Metrics'), showWarnings = FALSE)
+    setwd(file.path(getwd(), 'Individual_Metrics'))
+
     # FMT_don_table, the table of OTUs in the post-transplant samples that came from the donor.
     FMT_don_table <- semi_join(post_fmt_full, donor_unique, by = "OTU")
     write.csv(FMT_don_table, paste(output_name, "FMT_don_table.csv", sep = "_"), row.names = FALSE)
@@ -245,8 +248,9 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
 
     cat("Writing output metric table, plot, & QC...\n")
 
+    setwd('../')
 
-    write.csv(output_table, file = paste(output_name,"metric_table.csv", sep = "_"), row.names = FALSE)
+    write.csv(output_table, file = paste(output_name,"metric_summary_table.csv", sep = "_"), row.names = FALSE)
     metric_plot <- visualize_metrics_batch(N_otus_unique_donor, N_otus_unique_recipient, N_otus_post_fmt_full, FMT_don, FMT_rec, N_otus_unique_post_fmt, N_otus_shared_throughout, output_name, paste('Full', output_name, sep = "_"))
     metric_plot_excl <- visualize_metrics_batch(N_otus_unique_donor, N_otus_unique_recipient, N_otus_post_fmt_excl, FMT_don, FMT_rec, 0, 0, output_name, paste('Excl', output_name, sep = "_"))
 
