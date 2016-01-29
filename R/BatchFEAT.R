@@ -1,3 +1,12 @@
+require(phyloseq)
+require(rhdf5)
+require(biom)
+require(shiny)
+require(dplyr)
+require(DT)
+require(ggplot2)
+require(vegan)
+require(lazyeval)
 ggsave <- ggplot2::ggsave; body(ggsave) <- body(ggplot2::ggsave)[-2]
 options(digits = 4)
 
