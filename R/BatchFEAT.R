@@ -91,9 +91,9 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
     write.csv(experiment_specific, paste(output_name, "experiment_specific_table.csv", sep = "_"), row.names = FALSE)
 
 
-    n_donor_samples <- nrow(experiment_specific[experiment_specific[,comparison] == donor, ])
-    n_recipient_samples <- nrow(experiment_specific[experiment_specific[,comparison] == recipient, ])
-    n_post_fmt_samples <- nrow(experiment_specific[experiment_specific[,comparison] == post_fmt, ])
+    n_donor_samples <- nrow(experiment_specific[experiment_specific[,metadata_category] == donor, ])
+    n_recipient_samples <- nrow(experiment_specific[experiment_specific[,metadata_category] == recipient, ])
+    n_post_fmt_samples <- nrow(experiment_specific[experiment_specific[,metadata_category] == post_fmt, ])
     cat("# Donor Samples:", n_donor_samples, "\n")
     cat("# Recipient Samples:", n_recipient_samples, "\n")
     cat("# Post-FMT Samples:", n_post_fmt_samples, "\n")
