@@ -46,7 +46,6 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
 
   # Load Parameters
   parameters <- read.delim(file = input_params)
-  min_count <- as.numeric(as.character(parameters[parameters$Parameter == 'min_count', 'Value']))
   metadata_category <- as.character(parameters[parameters$Parameter == 'metadata', 'Value'])
   min_fraction <- as.numeric(as.character(parameters[parameters$Parameter == "min_fraction", "Value"]))
   min_abundance <- as.numeric(as.character(parameters[parameters$Parameter == "min_abundance", "Value"]))
