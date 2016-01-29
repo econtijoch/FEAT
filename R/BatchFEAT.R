@@ -36,6 +36,8 @@ batchFEAT <- function(biom_table, mapping_file, FMT_pairs, input_params, output_
 
   metadata_table <- dplyr::inner_join(biom_only, mapping, by = 'X.SampleID')
 
+  write.csv(metadata_table, "testing.csv", row.names = F)
+
   # Get total number of OTUs to start
   n_otus_starting <- nrow(biom_only)
   cat("# of OTUs to start:", n_otus_starting, '\n')
