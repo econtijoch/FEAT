@@ -24,7 +24,7 @@ batchFEAT <- function(biom_table, mapping_file, FMT_pairs, input_params, output_
   cat("Loading OTU Table & Mapping file...\n")
   # Load table + mapping
   mapping <- read.delim(file = mapping_file)
-  biom_table <- read_biom(biom_table)
+  biom_table <- biom::read_biom(biom_table)
   cat("OTU Table & Mapping file loaded...\n")
 
   data <- as(biom_data(biom_table), "matrix")
@@ -34,10 +34,10 @@ batchFEAT <- function(biom_table, mapping_file, FMT_pairs, input_params, output_
   biom_only$X.SampleID <- as.character(row.names(biom_only))
   row.names(biom_only) <- NULL
 
-  metadata_table <- inner_join(biom_only, mapping(), by = 'X.SampleID')
+  metadata_table <- dplyr::inner_join(biom_only, mapping(), by = 'X.SampleID')
 
   # Get total number of OTUs to start
-  n_otus_starting <- nrow(biom)
+  n_otus_starting <- nrow(biom_only)
   cat("# of OTUs to start:", n_otus_starting, '\n')
 
   # Load Parameters
