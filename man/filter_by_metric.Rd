@@ -6,6 +6,13 @@
 \usage{
 filter_by_metric(table, min_diff, difference_labels)
 }
+\arguments{
+\item{table}{OTU table}
+
+\item{min_diff}{minimum difference in abundances}
+
+\item{difference_labels}{list of labels that identify differences}
+}
 \value{
 table filtered for a minimum difference between categories
 }

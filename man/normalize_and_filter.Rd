@@ -6,6 +6,11 @@
 \usage{
 normalize_and_filter(biom_table, min_fraction)
 }
+\arguments{
+\item{biom_table}{otu table}
+
+\item{min_fraction}{minimum fraction of otus to filter on (e.g. 0.001)}
+}
 \value{
 output OTU table with relative abundances above the provided minimum
 }

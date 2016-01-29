@@ -6,6 +6,9 @@
 \usage{
 percent(x, digits = 2, format = "f", ...)
 }
+\arguments{
+\item{x}{decimal number}
+}
 \value{
 a percentage from a decimal
 }

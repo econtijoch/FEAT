@@ -206,17 +206,17 @@ shinyServer(function(input, output, session) {
   # Create tables that are specific for each given condition
   donor_only_table <- eventReactive(input$normalize_filter, {
     validate(need(!is.null(input$input_otu_table) && !is.null(input$mapping_file), "Please load an OTU table and mapping file."))
-    table <- get_condition_only_table_function(biom_table(), input$comparison, donor())
+    table <- biom_table()[biom_table()[,input$comparison] == donor(),]
     return(table)
   })
   recipient_only_table <- eventReactive(input$normalize_filter, {
     validate(need(!is.null(input$input_otu_table) && !is.null(input$mapping_file), "Please load an OTU table and mapping file."))
-    table <- get_condition_only_table_function(biom_table(), input$comparison, recipient())
+    table <- biom_table()[biom_table()[,input$comparison] == recipient(),]
     return(table)
   })
   post_fmt_only_table <- eventReactive(input$normalize_filter, {
     validate(need(!is.null(input$input_otu_table) && !is.null(input$mapping_file), "Please load an OTU table and mapping file."))
-    table <- get_condition_only_table_function(biom_table(), input$comparison, post_fmt())
+    table <- biom_table()[biom_table()[,input$comparison] == post_fmt(),]
     return(table)
   })
 

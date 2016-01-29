@@ -2,7 +2,10 @@
 % Please edit documentation in R/launch.R
 \name{filter_function}
 \alias{filter_function}
-\title{Define a function to produce tables populated only by OTUs that have non-zero counts in a given fraction of all of the samples for that condition}
+\title{Define a function to produce tables populated only by OTUs that have non-zero counts in a given fraction of all of the samples for that condition
+ @param table OTU table
+ @param min_fraction minimum fraction of samples with non-zero OTU count
+ @param condition condition for which this must be true}
 \usage{
 filter_function(table, min_fraction, condition)
 }
@@ -11,5 +14,8 @@ tables populated only by OTUs that have non-zero counts in a given fraction of a
 }
 \description{
 Define a function to produce tables populated only by OTUs that have non-zero counts in a given fraction of all of the samples for that condition
+ @param table OTU table
+ @param min_fraction minimum fraction of samples with non-zero OTU count
+ @param condition condition for which this must be true
 }
 

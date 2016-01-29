@@ -6,6 +6,9 @@
 \usage{
 nonzero_fraction_getter(table)
 }
+\arguments{
+\item{table}{OTU table}
+}
 \value{
 table of OTUs and the fraction of samples in which they have non-zero values
 }

@@ -6,6 +6,11 @@
 \usage{
 table_reorder_first(table, value)
 }
+\arguments{
+\item{table}{table}
+
+\item{value}{value to place first}
+}
 \value{
 table with selected column moved to the front
 }

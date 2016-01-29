@@ -6,6 +6,9 @@
 \usage{
 collapse_taxonomy(table)
 }
+\arguments{
+\item{table}{taxonomy table}
+}
 \value{
 table collapsed by taxonomy
 }

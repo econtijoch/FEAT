@@ -6,6 +6,9 @@
 \usage{
 means_of_numbers_only(x)
 }
+\arguments{
+\item{x}{vector of mixed numbers and other values}
+}
 \value{
 an average of only the numbers of a given vector
 }

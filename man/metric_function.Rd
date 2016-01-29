@@ -2,14 +2,21 @@
 % Please edit documentation in R/launch.R
 \name{metric_function}
 \alias{metric_function}
-\title{Define a function that returns the mean or median OTU count in samples of a given condition}
+\title{Define a function that returns the mean or median OTU representation}
 \usage{
-metric_function(table, label, condition, metric)
+metric_function(table, label, metric)
+}
+\arguments{
+\item{table}{OTU table}
+
+\item{label}{label}
+
+\item{metric}{defines whether to take the mean or median OTU representation in a table}
 }
 \value{
 the mean or median OTU count in samples of a given condition
 }
 \description{
-Define a function that returns the mean or median OTU count in samples of a given condition
+Define a function that returns the mean or median OTU representation
 }
 
