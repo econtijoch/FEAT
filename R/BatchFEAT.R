@@ -24,22 +24,22 @@ batchFEAT <- function(biom_table, mapping_file, FMT_pairs, input_params, output_
   cat("Loading OTU Table & Mapping file...\n")
   # Load table + mapping
   mapping <- read.delim(file = mapping_file)
-  write.csv(mapping, 'mapping.csv')
+  mapping$X.SampleID <- as.character(mapping$X.SampleID)
   biom_table <- biom::read_biom(biom_table)
   cat("OTU Table & Mapping file loaded...\n")
 
-  data <- as(biom_data(biom_table), "matrix")
-  write.csv(data, 'data.csv')
+  data <- as.matrix(biom_data(biom_table))
   biom_only <- as.data.frame(t(data))
-  raw_table_otu_count <<- ncol(biom_only)
+  raw_table_otu_count <- ncol(biom_only)
   colnames(biom_only) <- paste("OTU", colnames(biom_only), sep = "_")
   biom_only$X.SampleID <- as.character(row.names(biom_only))
   row.names(biom_only) <- NULL
-  write.csv(biom_only, 'biom_only.csv')
 
   metadata_table <- dplyr::inner_join(biom_only, mapping, by = 'X.SampleID')
 
   write.csv(metadata_table, "testing.csv", row.names = F)
+
+  cat("Metadata added to OTU table... \n")
 
   # Get total number of OTUs to start
   n_otus_starting <- nrow(biom_only)
