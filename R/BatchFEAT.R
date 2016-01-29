@@ -20,7 +20,9 @@ options(digits = 4)
 #' @export
 #'
 batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_dir) {
-
+  start_time <- proc.time()
+  cat("----Batch FMT Efficacy Analysis Toolkit-----\n")
+  cat("***Starting***\n")
   cat("Loading OTU Table & Mapping file...\n")
   # Load table + mapping
   mapping <- read.delim(file = mapping_file)
@@ -306,6 +308,9 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
   write.csv(table_out, file = "All_Transplant_Summary.csv")
 
   setwd('../')
-
+  end_time <- proc.time()
+  elapsed <- (end_time - start_time)[['elapsed']]
+  cat("***Finished***\n")
+  cat(paste("Total Time: ", round(elapsed, digits = 2), " seconds\n", sep = ""))
 
 }
