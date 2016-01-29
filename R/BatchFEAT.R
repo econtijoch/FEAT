@@ -26,17 +26,17 @@ batchFEAT <- function(biom_table, mapping_file, FMT_pairs, input_params, output_
   mapping <- read.delim(file = mapping_file)
   mapping$X.SampleID <- as.character(mapping$X.SampleID)
   biom_table <- biom::read_biom(biom_table)
-  cat("OTU Table & Mapping file loaded...\n")
-  cat("Adding Metadata to OTU table...\n")
-
-  data <- as.matrix(biom_data(biom_table))
-  biom_only <- as.data.frame(t(data))
+  table_data <- as.matrix(biom_data(biom_table))
+  biom_only <- as.data.frame(t(table_data))
   raw_table_otu_count <- ncol(biom_only)
   colnames(biom_only) <- paste("OTU", colnames(biom_only), sep = "_")
   biom_only$X.SampleID <- as.character(row.names(biom_only))
   row.names(biom_only) <- NULL
 
-  metadata_table <- dplyr::inner_join(biom_only, mapping, by = 'X.SampleID')
+  cat("OTU Table & Mapping file loaded...\n")
+  cat("Adding Metadata to OTU table...\n")
+
+  metadata_table <- inner_join(biom_only, mapping, by = 'X.SampleID')
 
   write.csv(metadata_table, "testing.csv", row.names = F)
 
