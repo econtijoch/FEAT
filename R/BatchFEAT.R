@@ -36,7 +36,7 @@ batchFEAT <- function(biom_table, mapping_file, FMT_pairs, input_params, output_
   cat("OTU Table & Mapping file loaded...\n")
   cat("Adding Metadata to OTU table...\n")
 
-  metadata_table <- inner_join(biom_only, mapping, by = 'X.SampleID')
+  metadata_table <- merge(biom_only, mapping, by = 'X.SampleID')
 
   write.csv(metadata_table, "testing.csv", row.names = F)
 
