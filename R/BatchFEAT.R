@@ -79,7 +79,7 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
     recipient <- as.character(transplant_pairs[i, "Recipient"])
     post_fmt <- as.character(transplant_pairs[i, "Post_FMT"])
     comment <- as.character(transplant_pairs[i, "Comment"])
-    output_name <- paste(post_fmt, " (", comment, ")", sep = "")
+    output_name <- post_fmt
     dir.create(file.path(getwd(), output_name), showWarnings = FALSE)
     setwd(file.path(getwd(), output_name))
     cat("-----Start Iteration (", i, "of", nrow(transplant_pairs),") -----\n")
@@ -253,8 +253,8 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
     setwd('../')
 
     write.csv(output_table, file = paste(output_name,"metric_summary_table.csv", sep = "_"), row.names = FALSE)
-    metric_plot <- visualize_metrics_batch(N_otus_unique_donor, N_otus_unique_recipient, N_otus_post_fmt_full, FMT_don, FMT_rec, N_otus_unique_post_fmt, N_otus_shared_throughout, output_name, paste('Full', output_name, sep = "_"))
-    metric_plot_excl <- visualize_metrics_batch(N_otus_unique_donor, N_otus_unique_recipient, N_otus_post_fmt_excl, FMT_don, FMT_rec, 0, 0, output_name, paste('Excl', output_name, sep = "_"))
+    metric_plot <- visualize_metrics_batch(N_otus_unique_donor, N_otus_unique_recipient, N_otus_post_fmt_full, FMT_don, FMT_rec, N_otus_unique_post_fmt, N_otus_shared_throughout, output_name, paste('Full', output_name, sep = "_"), comment)
+    metric_plot_excl <- visualize_metrics_batch(N_otus_unique_donor, N_otus_unique_recipient, N_otus_post_fmt_excl, FMT_don, FMT_rec, 0, 0, output_name, paste('Excl', output_name, sep = "_"), comment)
 
     ## QC Tables & Metrics
 

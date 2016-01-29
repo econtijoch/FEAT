@@ -197,8 +197,6 @@ visualize_metrics <- function(N_donor, N_recipient, N_postFMT, FMT_donor, FMT_re
   FMT_shared <- round(N_shared/N_FMT, 3)
 
 
-  title_text <- paste("Donor:", "A", "; Recipient:", "B", sep = " ")
-
   maximum <- max(c(N_don, N_rec, N_FMT))
 
   buffer <- max(c(1, maximum/5))
@@ -307,7 +305,7 @@ normalize_and_filter_batch <- function(biom_table, min_fraction) {
 #' @return a plot that depicts FMT efficacy, saved to PDF
 #' @export
 #'
-visualize_metrics_batch <- function(N_donor, N_recipient, N_postFMT, FMT_donor, FMT_recipient, N_unique_postfmt, N_shared_postfmt, title_text, output_name) {
+visualize_metrics_batch <- function(N_donor, N_recipient, N_postFMT, FMT_donor, FMT_recipient, N_unique_postfmt, N_shared_postfmt, title_text, output_name, exp_id) {
 
   N_don <- N_donor
   N_rec <- N_recipient
@@ -322,9 +320,6 @@ visualize_metrics_batch <- function(N_donor, N_recipient, N_postFMT, FMT_donor, 
   FMT_FracR <- round(FMT_rec/N_FMT, 3)
   FMT_unique <- round(N_unique/N_FMT, 3)
   FMT_shared <- round(N_shared/N_FMT, 3)
-
-
-  title_text <- paste("Donor:", "A", "; Recipient:", "B", sep = " ")
 
   maximum <- max(c(N_don, N_rec, N_FMT))
 
@@ -369,7 +364,7 @@ visualize_metrics_batch <- function(N_donor, N_recipient, N_postFMT, FMT_donor, 
     annotate('segment', x = (N_don+N_rec+FMT_don+FMT_rec+N_unique+N_shared/2)+3*buffer, y = 3, xend = (N_don+N_rec+FMT_don+FMT_rec+N_unique+N_shared/2)+3*buffer, yend = 9, colour = "black", size = 2, arrow = arrow(length = unit(0.5, "cm"))) +
     annotate("text", x = (N_don+N_rec+FMT_don+FMT_rec+N_unique+N_shared/2)+3*buffer, y = 1, label = paste("FMT[Shared]: ", FMT_shared, "(", N_shared, ")",  sep = ""), parse = T, size = 6)
 
-  p <- p + ggtitle(paste("FMT Metric Visualization:", title_text, sep = "\n")) + theme(axis.line=element_blank(),
+  p <- p + ggtitle(paste("FMT Metric Visualization:\n", title_text, "\n(", exp_id, ")", sep = "")) + theme(axis.line=element_blank(),
                                                                                        axis.text.x=element_blank(),
                                                                                        axis.text.y=element_blank(),
                                                                                        axis.ticks=element_blank(),
