@@ -10,13 +10,13 @@ Description: Interactive Shiny App + command line tools to analyze efficacy of
 License: GPL-2
 LazyData: TRUE
 RoxygenNote: 5.0.1
-Imports:
-  phyloseq
-  rhdf5
-  biom
-  shiny
-  dplyr
-  DT
-  ggplot2
-  vegan
+Depends:
+  phyloseq,
+  rhdf5,
+  biom,
+  shiny,
+  dplyr,
+  DT,
+  ggplot2,
+  vegan,
   lazyeval
