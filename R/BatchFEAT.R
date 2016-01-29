@@ -19,13 +19,13 @@ options(digits = 4)
 #' @return many files containing QC and summary statistics, as well as FMT visualizations
 #' @export
 #'
-batchFEAT <- function(biom_table, mapping_file, FMT_pairs, input_params, output_dir) {
+batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_dir) {
 
   cat("Loading OTU Table & Mapping file...\n")
   # Load table + mapping
   mapping <- read.delim(file = mapping_file)
   mapping$X.SampleID <- as.character(mapping$X.SampleID)
-  biom_table <- biom::read_biom(biom_table)
+  biom_table <- biom::read_biom(biom_file)
   table_data <- as.matrix(biom_data(biom_table))
   biom_only <- as.data.frame(t(table_data))
   raw_table_otu_count <- ncol(biom_only)
