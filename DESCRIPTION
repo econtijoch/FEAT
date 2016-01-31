@@ -6,12 +6,11 @@ Date: 2016-01-27
 Author: Eduardo Contijoch
 Maintainer: Eduardo Contijoch <eduardo.contijoch@gmail.com>
 Description: Interactive Shiny App + command line tools to analyze efficacy of
-    FMT
+    FMT. Produces FMT metrics based on OTUs (however defined) and taxonomy, if given.
 License: GPL-2
 LazyData: TRUE
 RoxygenNote: 5.0.1
 Depends:
-  biom,
   shiny,
   dplyr,
   DT,

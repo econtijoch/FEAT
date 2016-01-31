@@ -5,7 +5,8 @@
 \title{Function to produce FMT metric visualizations and save the file}
 \usage{
 visualize_metrics_batch(N_donor, N_recipient, N_postFMT, FMT_donor,
-  FMT_recipient, N_unique_postfmt, N_shared_postfmt, title_text, output_name)
+  FMT_recipient, N_unique_postfmt, N_shared_postfmt, title_text, output_name,
+  exp_id)
 }
 \arguments{
 \item{N_donor}{number of otus in donor}

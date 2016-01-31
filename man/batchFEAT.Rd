@@ -4,11 +4,10 @@
 \alias{batchFEAT}
 \title{Command-line FEAT function to perform analysis in batch for a given experiment.}
 \usage{
-batchFEAT(biom_table, mapping_file, FMT_pairs, input_params, output_dir)
+batchFEAT(biom_file, mapping_file, FMT_pairs, input_params, output_dir,
+  taxonomy = NULL)
 }
 \arguments{
-\item{biom_table}{BIOM table}
-
 \item{mapping_file}{Mapping File}
 
 \item{FMT_pairs}{tsv indicating FMT pairs (see example)}
@@ -16,6 +15,10 @@ batchFEAT(biom_table, mapping_file, FMT_pairs, input_params, output_dir)
 \item{input_params}{input parameters in tsv}
 
 \item{output_dir}{output directory to leave output files}
+
+\item{biom_table}{BIOM table}
+
+\item{...}{taxonomy file (optional)}
 }
 \value{
 many files containing QC and summary statistics, as well as FMT visualizations
