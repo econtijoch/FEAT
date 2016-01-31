@@ -11,8 +11,6 @@ License: GPL-2
 LazyData: TRUE
 RoxygenNote: 5.0.1
 Depends:
-  phyloseq,
-  rhdf5,
   biom,
   shiny,
   dplyr,

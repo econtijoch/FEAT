@@ -10,16 +10,18 @@ require(lazyeval)
 ggsave <- ggplot2::ggsave; body(ggsave) <- body(ggplot2::ggsave)[-2]
 options(digits = 4)
 
+
 #' Command-line FEAT function to perform analysis in batch for a given experiment.
 #' @param biom_table BIOM table
 #' @param mapping_file Mapping File
 #' @param FMT_pairs tsv indicating FMT pairs (see example)
 #' @param input_params input parameters in tsv
 #' @param output_dir output directory to leave output files
+#' @param ... taxonomy file (optional)
 #' @return many files containing QC and summary statistics, as well as FMT visualizations
 #' @export
 #'
-batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_dir) {
+batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_dir, taxonomy=NULL) {
   start_time <- proc.time()
   cat("----Batch FMT Efficacy Analysis Toolkit-----\n")
   cat("***Starting***\n")
@@ -36,6 +38,23 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
   row.names(biom_only) <- NULL
 
   cat("OTU Table & Mapping file loaded...\n")
+  
+  if(!is.null(taxonomy)){
+	  cat("Taxonomy provided, loading Taxonomy map...\n")
+	tax_map <- read.delim(taxonomy, header = FALSE)
+	colnames(tax_map) <- c("OTU", "Taxon", "Quality_Score")
+	tax_map$OTU <- paste("OTU", tax_map$OTU, sep = "_")
+	
+	tax_check <- TRUE
+	tax_file <- taxonomy
+
+	cat("Taxonomy map loaded successfully...\n")
+	}
+	else if (is.null(taxonomy)){
+		tax_check <- FALSE
+		tax_file <- 'N/A'
+	}
+  
   cat("Adding Metadata to OTU table...\n")
 
   metadata_table <- merge(biom_only, mapping, by = 'X.SampleID')
@@ -54,10 +73,9 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
   comparison <- as.character(parameters[parameters$Parameter == "comparison", "Value"])
 
 
-
   transplant_pairs <- read.delim(file = FMT_pairs, header = TRUE)
 
-  table_out_items <- c("Comment", "TransplantID", "Input OTU Table", "# OTUs in raw table",
+  table_out_items <- c("Comment", "TransplantID", "Taxonomy Added", "Taxonomy File", "Input OTU Table", "# OTUs in raw table",
                        "Mapping File", "Metadata Category to Select FMT Details",
                        "Donor", "# Donor Samples", "Recipient", "# Recipient Samples", "Post-FMT Recipient", "# Post-FMT Recipient Samples", "Minimum Relative Abundance Filter", "# OTUs After Minimum Relative Abundance Filter",
                        "Fleeting OTU Filter Threshold", "# OTUs After Fleeting OTU Filter (Final # OTUs)", "Comparison Metric",
@@ -67,7 +85,7 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
                        "FMT_rec: # from recipient in post-FMT", "R_Frac_FMT: proportion of recipient in post-FMT", "FMT_FracR: propotion of post-FMT from recipient",
                        "FMT_don_excl: # from donor in post-FMT (excluding shared & unique)", "D_Frac_FMT_excl: proportion of donor in post-FMT (excluding shared & unique)", "FMT_FracD_excl: proportion of post-FMT from donor (excluding shared & unique)",
                        "FMT_rec_excl: # from recipient in post-FMT (excluding shared & unique)", "R_Frac_FMT_excl : proportion of recipient in post-FMT (excluding shared & unique)", "FMT_FracR_excl: propotion of post-FMT from recipient (excluding shared & unique)")
-
+					  
   table_out <- data.frame(t(table_out_items))
   colnames(table_out) <- make.names(table_out_items)
   table_out <- table_out[-1, ]
@@ -83,8 +101,9 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
     dir.create(file.path(getwd(), output_name), showWarnings = FALSE)
     setwd(file.path(getwd(), output_name))
     cat("-----Start Iteration (", i, "of", nrow(transplant_pairs),") -----\n")
-    transplant_id <- paste(donor, "into", recipient, sep = " ")
-    cat("Performing analysis for the following transplant:", transplant_id, "(", comment, ")\n")
+    transplant_id <- paste(donor, " into ", recipient, " (", post_fmt,")",sep = "")
+	
+    cat("Performing analysis for the following transplant:", transplant_id, "--", comment, "--\n")
     cat("Generating transplant-specific table\n")
     experiment_specific <- split_into_experiment_batch(metadata_table, mapping, metadata_category, donor, recipient, post_fmt)
 
@@ -104,6 +123,7 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
     normalized_unfiltered <- normalized_filtered_list[[3]] # For QC
     normalized_filtered <- normalized_filtered_list[[1]]
 
+
     dir.create(file.path(getwd(), 'Tables'), showWarnings = FALSE)
     setwd(file.path(getwd(), 'Tables'))
 
@@ -119,50 +139,68 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
     write.csv(recipient_only_table, paste(output_name, "recipient_only_table.csv", sep = "_"), row.names = FALSE)
     post_fmt_only_table <- full_table[full_table[,metadata_category] == post_fmt,]
     write.csv(post_fmt_only_table, paste(output_name, "post_fmt_only_table.csv", sep = "_"), row.names = FALSE)
-
+	
+	
     cat("Filtering OTUs that are fleeting (are present in less than", percent(min_fraction), "of samples of each group)\n")
     donor_nonzero_table <- filter_function(nonzero_fraction_getter(donor_only_table), min_fraction, donor)
     recipient_nonzero_table <- filter_function(nonzero_fraction_getter(recipient_only_table), min_fraction, recipient)
     post_fmt_nonzero_table <- filter_function(nonzero_fraction_getter(post_fmt_only_table), min_fraction, post_fmt)
+	
+	if(!is.null(taxonomy)) {
+		cat("Collapsing OTUs into Taxa...\n")
+		donor_nonzero_table <- collapse_taxonomy(inner_join(donor_nonzero_table, tax_map, by = "OTU"))
+		recipient_nonzero_table <- collapse_taxonomy(inner_join(recipient_nonzero_table, tax_map, by = "OTU"))
+		post_fmt_nonzero_table <- collapse_taxonomy(inner_join(post_fmt_nonzero_table, tax_map, by = "OTU"))
+		
+		full_nonzero <- bind_rows(bind_rows(donor_nonzero_table, recipient_nonzero_table), post_fmt_nonzero_table)
+		
+		distinct_otus_nonzero <- distinct(as.data.frame(full_nonzero$Taxon))
+		
+	} else if (is.null(taxonomy)) {
+		full_nonzero <- bind_rows(bind_rows(donor_nonzero_table, recipient_nonzero_table), post_fmt_nonzero_table)
+		
+		distinct_otus_nonzero <- distinct(as.data.frame(full_nonzero$OTU))
+	}
 
-    full_nonzero <- bind_rows(bind_rows(donor_nonzero_table, recipient_nonzero_table, post_fmt_nonzero_table))
+
     write.csv(full_nonzero, paste(output_name, "full_nonzero_table.csv", sep = "_"), row.names = FALSE)
-
-    distinct_otus_nonzero <- distinct(as.data.frame(full_nonzero$OTU))
     n_otus_after_fleeting_filter <- nrow(distinct_otus_nonzero)
-    cat("# of OTUs that remain after this filter:", n_otus_after_fleeting_filter, "\n")
+    cat("# of OTUs/Taxa that remain after this filter:", n_otus_after_fleeting_filter, "\n")
 
     cat("Writing tables...\n")
 
+	if(!is.null(taxonomy)){
+		joining_category <- "Taxon"
+	} else if (is.null(taxonomy)) {
+		joining_category <- "OTU"
+	}
 
     # Make Tables of OTUs unique to each condition
-    donor_unique <- anti_join(donor_nonzero_table, recipient_nonzero_table, by = "OTU")
+    donor_unique <- anti_join(donor_nonzero_table, recipient_nonzero_table, by = joining_category)
     write.csv(donor_unique, paste(output_name, "donor_unique_table.csv", sep = "_"), row.names = FALSE)
     cat("donor_unique.csv written\n")
-    recipient_unique <- anti_join(recipient_nonzero_table, donor_nonzero_table, by = "OTU")
+    recipient_unique <- anti_join(recipient_nonzero_table, donor_nonzero_table, by = joining_category)
     write.csv(recipient_unique, paste(output_name, "recipient_unique_table.csv", sep = "_"), row.names = FALSE)
     cat("recipient_unique.csv written\n")
-    post_fmt_unique <- anti_join(anti_join(post_fmt_nonzero_table, donor_nonzero_table, by = "OTU"), recipient_nonzero_table, by = "OTU")
+    post_fmt_unique <- anti_join(anti_join(post_fmt_nonzero_table, donor_nonzero_table, by = joining_category), recipient_nonzero_table, by = joining_category)
     write.csv(post_fmt_unique, paste(output_name, "post_fmt_unique_table.csv", sep = "_"), row.names = FALSE)
     cat("post_fmt_unique.csv written\n")
     post_fmt_full <- post_fmt_nonzero_table
     write.csv(post_fmt_full, paste(output_name, "post_fmt_full_table.csv", sep = "_"), row.names = FALSE)
     cat("post_fmt_full.csv written\n")
 
-    post_fmt_donor <- semi_join(post_fmt_nonzero_table, donor_unique, by = "OTU")
-    post_fmt_rec <- semi_join(post_fmt_nonzero_table, recipient_unique, by = "OTU")
+    post_fmt_donor <- semi_join(post_fmt_nonzero_table, donor_unique, by = joining_category)
+    post_fmt_rec <- semi_join(post_fmt_nonzero_table, recipient_unique, by = joining_category)
     post_fmt_excl <- bind_rows(post_fmt_donor, post_fmt_rec)
     write.csv(post_fmt_excl, paste(output_name, "pos_fmt_excl_table.csv", sep = "_"), row.names = FALSE)
     cat("post_fmt_excl.csv written\n")
-    shared_pre <- semi_join(donor_nonzero_table, recipient_nonzero_table, by = "OTU")
+    shared_pre <- semi_join(donor_nonzero_table, recipient_nonzero_table, by = joining_category)
     write.csv(shared_pre, paste(output_name, "shared_pre_table.csv", sep = "_"), row.names = FALSE)
     cat('shared_pre.csv written\n')
-    shared_throughout <- semi_join(shared_pre, post_fmt_nonzero_table, by = "OTU")
+    shared_throughout <- semi_join(shared_pre, post_fmt_nonzero_table, by = joining_category)
     write.csv(shared_throughout, paste(output_name, "shared_throughout_table.csv", sep = "_"), row.names = FALSE)
     cat("shared_throughout.csv written\n")
-
-    setwd('../')
-
+	
     # Get numbers of OTUs unique to each condition
     N_otus_unique_donor <- nrow(donor_unique)
     N_otus_unique_recipient <- nrow(recipient_unique)
@@ -175,17 +213,40 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
     #Create a combined table of OTUs unique for the different conditions, including nonzero fraction
     OTUs_unique_combined <- bind_rows(bind_rows(donor_unique, recipient_unique), post_fmt_unique) %>% arrange(Specificity)
     OTUs_unique_combined_excluded <- bind_rows(donor_unique, recipient_unique) %>% arrange(Specificity)
+	
 
+	donor_relative_abundance <- metric_function(donor_only_table, paste("Donor", donor, sep = "_"), comparison)
+	recipient_relative_abundance <- metric_function(recipient_only_table, paste("Recipient", recipient, sep = "_"), comparison)
+	post_fmt_relative_abundance <- metric_function(post_fmt_only_table, paste("Post_FMT", post_fmt, sep = "_"), comparison)
+	
+	if (!is.null(taxonomy)){
+		relative_abundance_unfiltered <- inner_join(full_join(full_join(donor_relative_abundance[,-3], recipient_relative_abundance[,-3], by = "OTU"), post_fmt_relative_abundance[,-3], by = "OTU"), tax_map, by = "OTU")
+		full_relative_abundance <- collapse_taxonomy(inner_join(OTUs_unique_combined, relative_abundance_unfiltered, by = joining_category))
+		full_relative_abundance_excl <- collapse_taxonomy(inner_join(OTUs_unique_combined_excluded, relative_abundance_unfiltered, by = joining_category))
+	
+	} else if (is.null(taxonomy)) {
+		relative_abundance_unfiltered <- full_join(full_join(donor_relative_abundance[,-3], recipient_relative_abundance[,-3], by = "OTU"), post_fmt_relative_abundance[,-3], by = "OTU")
+		full_relative_abundance <- inner_join(OTUs_unique_combined, relative_abundance_unfiltered, by = joining_category)
+		full_relative_abundance_excl <- inner_join(OTUs_unique_combined_excluded, relative_abundance_unfiltered, by = joining_category)
+	
+	}
+	
+	write.csv(full_relative_abundance, paste(output_name, 'full_relative_abundance.csv', sep = "_"), row.names = FALSE)
+	write.csv(full_relative_abundance_excl, paste(output_name, 'excl_relative_abundance.csv', sep = "_"), row.names = FALSE)
+	
 
+    setwd('../')
+
+   
     cat("Computing metrics...\n")
 
     dir.create(file.path(getwd(), 'Individual_Metrics'), showWarnings = FALSE)
     setwd(file.path(getwd(), 'Individual_Metrics'))
 
     # FMT_don_table, the table of OTUs in the post-transplant samples that came from the donor.
-    FMT_don_table <- semi_join(post_fmt_full, donor_unique, by = "OTU")
+    FMT_don_table <- semi_join(post_fmt_full, donor_unique, by = joining_category)
     write.csv(FMT_don_table, paste(output_name, "FMT_don_table.csv", sep = "_"), row.names = FALSE)
-    FMT_don_table_excluded <- semi_join(post_fmt_excl, donor_unique, by = "OTU")
+    FMT_don_table_excluded <- semi_join(post_fmt_excl, donor_unique, by = joining_category)
     write.csv(FMT_don_table_excluded, paste(output_name, "FMT_don_table_excl.csv", sep = "_"), row.names = FALSE) ## may be unnecessary
 
     # FMT_don, the number of OTUs in the post-transplant samples that came from the donor
@@ -201,12 +262,13 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
     FMT_FracD_excluded <- FMT_don_excluded/nrow(post_fmt_excl)
 
     # FMT_rec_table, the table of OTUs in the post-transplant samples that came from the recipient
-    FMT_rec_table <- semi_join(post_fmt_full, recipient_unique, by = "OTU")
+    FMT_rec_table <- semi_join(post_fmt_full, recipient_unique, by = joining_category)
     write.csv(FMT_rec_table, paste(output_name, "FMT_rec_table.csv", sep = "_"), row.names = FALSE)
-    FMT_rec_table_excluded <- semi_join(post_fmt_excl, recipient_unique, by = "OTU")
+    FMT_rec_table_excluded <- semi_join(post_fmt_excl, recipient_unique, by = joining_category)
     write.csv(FMT_rec_table_excluded, paste(output_name, "FMT_rec_table_excl.csv", sep = "_"), row.names = FALSE)
 
-
+    setwd('../')
+	
     # FMT_rec, the number of OTUs in the post-transplant samples that came from the recipient
     FMT_rec <- nrow(FMT_rec_table)
     FMT_rec_excluded <- nrow(FMT_rec_table_excluded)
@@ -221,7 +283,7 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
 
     cat('Compiling metrics...\n')
 
-    Item <- c("Comment", "TransplantID", "Input OTU Table", "# OTUs in raw table",
+    Item <- c("Comment", "TransplantID", "Taxonomy Added", "Taxonomy File", "Input OTU Table", "# OTUs in raw table",
               "Mapping File", "Metadata Category to Select FMT Details",
               "Donor", "# Donor Samples", "Recipient", "# Recipient Samples", "Post-FMT Recipient", "# Post-FMT Recipient Samples", "Minimum Relative Abundance Filter", "# OTUs After Minimum Relative Abundance Filter",
               "Fleeting OTU Filter Threshold", "# OTUs After Fleeting OTU Filter (Final # OTUs)", "Comparison Metric",
@@ -231,7 +293,7 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
               "FMT_rec: # from recipient in post-FMT", "R_Frac_FMT: proportion of recipient in post-FMT", "FMT_FracR: propotion of post-FMT from recipient",
               "FMT_don_excl: # from donor in post-FMT (excluding shared & unique)", "D_Frac_FMT_excl: proportion of donor in post-FMT (excluding shared & unique)", "FMT_FracD_excl: proportion of post-FMT from donor (excluding shared & unique)",
               "FMT_rec_excl: # from recipient in post-FMT (excluding shared & unique)", "R_Frac_FMT_excl : proportion of recipient in post-FMT (excluding shared & unique)", "FMT_FracR_excl: propotion of post-FMT from recipient (excluding shared & unique)")
-    Value <- c(comment, transplant_id, biom_file, n_otus_starting,
+    Value <- c(comment, transplant_id, tax_check, tax_file, biom_file, n_otus_starting,
                mapping_file, metadata_category,
                donor, n_donor_samples, recipient, n_recipient_samples, post_fmt, n_post_fmt_samples, min_abundance, n_otus_after_relative_filter,
                min_fraction, n_otus_after_fleeting_filter, comparison,
@@ -250,11 +312,9 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
 
     cat("Writing output metric table, plot, & QC...\n")
 
-    setwd('../')
-
     write.csv(output_table, file = paste(output_name,"metric_summary_table.csv", sep = "_"), row.names = FALSE)
-    metric_plot <- visualize_metrics_batch(N_otus_unique_donor, N_otus_unique_recipient, N_otus_post_fmt_full, FMT_don, FMT_rec, N_otus_unique_post_fmt, N_otus_shared_throughout, output_name, paste('Full', output_name, sep = "_"), comment)
-    metric_plot_excl <- visualize_metrics_batch(N_otus_unique_donor, N_otus_unique_recipient, N_otus_post_fmt_excl, FMT_don, FMT_rec, 0, 0, output_name, paste('Excl', output_name, sep = "_"), comment)
+    metric_plot <- visualize_metrics_batch(N_otus_unique_donor, N_otus_unique_recipient, N_otus_post_fmt_full, FMT_don, FMT_rec, N_otus_unique_post_fmt, N_otus_shared_throughout, output_name, paste('Full', joining_category, output_name, sep = "_"), comment)
+    metric_plot_excl <- visualize_metrics_batch(N_otus_unique_donor, N_otus_unique_recipient, N_otus_post_fmt_excl, FMT_don, FMT_rec, 0, 0, output_name, paste('Excl', joining_category, output_name, sep = "_"), comment)
 
     ## QC Tables & Metrics
 
@@ -298,6 +358,7 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
     dev.off()
 
     setwd('../')
+	
 
     setwd('../')
     cat("Finished writing outputs.\n")
@@ -306,7 +367,7 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
   }
 
   write.csv(table_out, file = "All_Transplant_Summary.csv")
-
+  
   setwd('../')
   end_time <- proc.time()
   elapsed <- (end_time - start_time)[['elapsed']]

@@ -137,22 +137,27 @@ collapse_taxonomy <- function(table) {
   mixed_column <- table %>% mutate(Sample_x_Taxon = paste(Specificity,
                                                              Taxon, sep = "_"))
   collapse <- mixed_column %>% group_by(Sample_x_Taxon) %>%
-    summarise_each(funs(means_of_numbers_only)) %>%
+    summarise_each(funs(sums_of_numbers_only)) 
+	if (!('fraction' %in% colnames(collapse))) {
+		collapse$fraction <- 'tmp'
+	}
+  collapsed <- collapse %>%
     select(-c(OTU, Sample_x_Taxon, fraction, Quality_Score)) %>%
     arrange(Specificity)
-  output <- table_reorder_first(table_reorder_first(collapse,
+  output <- table_reorder_first(table_reorder_first(collapsed,
                                                     "Specificity"), "Taxon")
   return(output)
 }
+
 
 #' Define a function that will take a vector and return the mean of the vector only if it is a vector of numbers but returns the first instance of the vector when it is not a number
 #' @param x vector of mixed numbers and other values
 #' @return an average of only the numbers of a given vector
 #' @export
 #'
-means_of_numbers_only <- function(x) {
+sums_of_numbers_only <- function(x) {
   if (class(x) == "numeric") {
-    return(mean(x))
+    return(sum(x))
   }
   else {
     return(x[1])
