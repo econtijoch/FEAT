@@ -366,7 +366,7 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
     cat("-----End Iteration-----\n")
   }
 
-  write.csv(table_out, file = "All_Transplant_Summary.csv")
+  write.csv(table_out, file = "All_Transplant_Summary.csv", row.names = FALSE)
   
   setwd('../')
   end_time <- proc.time()
