@@ -114,7 +114,7 @@ shinyServer(function(input, output, session) {
   })
 
   # Normalize and filter the experiment-specific table
-  biom_normalized_filtered <- eventReactive(input$normalize_filter, {
+  biom_normalized_filtered <- reactive({
     table <- normalize_and_filter(biom_experiment_specific(), input$min_OTU_fraction)
   })
   #Report success
@@ -126,14 +126,14 @@ shinyServer(function(input, output, session) {
 
   # Add mapping information
   # Table now has experiment-specific samples from the original biom file, all OTUs that pass preprocessing filters, and all metadata
-  biom_table <- eventReactive(input$normalize_filter, {
+  biom_table <- reactive({
     validate(need(!is.null(input$input_otu_table) && !is.null(input$mapping_file), "Please load an OTU table and mapping file."))
     output <- merge(biom_normalized_filtered(), mapping()[,c(-2,-3)])
     return(output)
   })
 
   # After this processing step, report back how many OTUs survive the preprocessing filters
-  num_otus_preprocess <- eventReactive(input$normalize_filter, {
+  num_otus_preprocess <- reactive({
     validate(need(!is.null(input$input_otu_table) && !is.null(input$mapping_file), "Please load an OTU table and mapping file."))
     n_col_biom_table <- ncol(biom_table())
     n_col_mapping <- ncol(mapping()[, c(-1,-2,-3)])
@@ -204,24 +204,24 @@ shinyServer(function(input, output, session) {
   ##########################################################################################
 
   # Create tables that are specific for each given condition
-  donor_only_table <- eventReactive(input$normalize_filter, {
+  donor_only_table <- reactive({
     validate(need(!is.null(input$input_otu_table) && !is.null(input$mapping_file), "Please load an OTU table and mapping file."))
     table <- biom_table()[biom_table()[,input$comparison] == donor(),]
     return(table)
   })
-  recipient_only_table <- eventReactive(input$normalize_filter, {
+  recipient_only_table <- reactive({
     validate(need(!is.null(input$input_otu_table) && !is.null(input$mapping_file), "Please load an OTU table and mapping file."))
     table <- biom_table()[biom_table()[,input$comparison] == recipient(),]
     return(table)
   })
-  post_fmt_only_table <- eventReactive(input$normalize_filter, {
+  post_fmt_only_table <- reactive({
     validate(need(!is.null(input$input_otu_table) && !is.null(input$mapping_file), "Please load an OTU table and mapping file."))
     table <- biom_table()[biom_table()[,input$comparison] == post_fmt(),]
     return(table)
   })
 
   # Create a merged table of the given conditions only, and place the column indicating the condition first, send to UI and allow for download
-  full_table <- eventReactive(input$normalize_filter, {
+  full_table <- reactive({
     if(is.null(donor_only_table()) | is.null(recipient_only_table()) | is.null(post_fmt_only_table()) | is.null(input$comparison)){return()}
     in_table <- bind_rows(bind_rows(donor_only_table(),recipient_only_table()), post_fmt_only_table())
     out <- table_reorder_first(in_table, input$comparison)
