@@ -395,15 +395,15 @@ shinyServer(function(input, output, session) {
 
   # Generate tables with the mean or median OTU relative abundance samples in a given condition. This will be calculated for ALL OTUs, not just those specific for each condition
   donor_relative_abundance <- reactive({
-    output <- metric_function(donor_only_table(), paste("Donor", donor(), sep = "_"), input$comparison_test)
+    output <- metric_function(donor_only_table(), "Donor", input$comparison_test)
     return(output)
   })
   recipient_relative_abundance <- reactive({
-    output <- metric_function(recipient_only_table(), paste("Recipient", recipient(), sep = "_"), input$comparison_test)
+    output <- metric_function(recipient_only_table(), "Recipient", input$comparison_test)
     return(output)
   })
   post_fmt_relative_abundance <- reactive({
-    output <- metric_function(post_fmt_only_table(), paste("Post_FMT", post_fmt(), sep = "_"), input$comparison_test)
+    output <- metric_function(post_fmt_only_table(), "Post_FMT", input$comparison_test)
     return(output)
   })
 
