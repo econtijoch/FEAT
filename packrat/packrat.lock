@@ -199,6 +199,12 @@ Version: 2.0.0
 Hash: 5befb1e7a9c7d0692d6c35fa02a29dbf
 Requires: digest, gtable, plyr, reshape2, scales
 
+Package: ggthemes
+Source: CRAN
+Version: 3.0.2
+Hash: 199b2d8fbd81fbb6bb5e986da0542e46
+Requires: assertthat, colorspace, ggplot2, scales
+
 Package: git2r
 Source: CRAN
 Version: 0.13.1

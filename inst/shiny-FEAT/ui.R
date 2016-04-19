@@ -8,7 +8,7 @@ shinyUI(fluidPage(
              ".shiny-output-error { visibility: hidden; }",
              ".shiny-output-error:before { visibility: hidden; }"),
   withMathJax(),
-  titlePanel(h1("FMT Efficacy Analysis Toolkit v2.0", align = "left")),
+  titlePanel(h1("FMT Efficacy Analysis Toolkit v2.0", align = "left"), windowTitle = "FMT Efficacy Analysis Toolkit (FEAT)"),
 
   navlistPanel(
     tabPanel("Home",
