@@ -303,8 +303,8 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
                min_fraction, n_otus_after_fleeting_filter, comparison,
                N_otus_unique_donor, N_otus_unique_recipient, N_otus_post_fmt_full, N_otus_post_fmt_excl,
                N_otus_unique_post_fmt, N_otus_shared_throughout,
-               P_Donor, D_Engraft, P_Donor,
-               P_Recipient, R_Persist, P_Recipient, P_Shared, P_Unique,
+               N_P_Donor, D_Engraft, P_Donor,
+               N_P_Recipient, R_Persist, P_Recipient, P_Shared, P_Unique,
                P_Donor_excluded, D_Engraft_excluded, P_Donor_excluded,
                P_Recipient_excluded, R_Persist_excluded, P_Recipient_excluded)
     output_table <- data.frame(Item, Value)
@@ -317,8 +317,8 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
     cat("Writing output metric table, plot, & QC...\n")
 
     write.csv(output_table, file = paste(output_name,"metric_summary_table.csv", sep = "_"), row.names = FALSE)
-    metric_plot <- visualize_metrics_batch(N_otus_unique_donor, N_otus_unique_recipient, N_otus_post_fmt_full, P_Donor, P_Recipient, N_otus_unique_post_fmt, N_otus_shared_throughout, output_name, paste('Full', joining_category, output_name, sep = "_"), comment)
-    metric_plot_excl <- visualize_metrics_batch(N_otus_unique_donor, N_otus_unique_recipient, N_otus_post_fmt_excl, P_Donor, P_Recipient, 0, 0, output_name, paste('Excl', joining_category, output_name, sep = "_"), comment)
+    metric_plot <- visualize_metrics_batch(N_otus_unique_donor, N_otus_unique_recipient, N_otus_post_fmt_full, N_P_Donor, N_P_Recipient, N_otus_unique_post_fmt, N_otus_shared_throughout, output_name, paste('Full', joining_category, output_name, sep = "_"), comment)
+    metric_plot_excl <- visualize_metrics_batch(N_otus_unique_donor, N_otus_unique_recipient, N_otus_post_fmt_excl, N_P_Donor, N_P_Recipient, 0, 0, output_name, paste('Excl', joining_category, output_name, sep = "_"), comment)
 
     ## QC Tables & Metrics
 
