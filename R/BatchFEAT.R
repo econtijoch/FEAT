@@ -83,8 +83,8 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
                        "N_post_fmt_unique", "N_shared",
                        "N_P_Donor", "D_Engraft", "P_Donor",
                        "N_P_Recipient", "R_Persist", "P_Recipient", "P_Shared", "P_Unique",
-                       "N_P_Donor_excl", "D_Engraft_excl", "P_Donor_excl",
-                       "N_P_Recipient_excl", "R_Persist_excl", "P_Recipient_excl")
+                       "D_Engraft_excl", "P_Donor_excl",
+                       "R_Persist_excl", "P_Recipient_excl")
 					  
   table_out <- data.frame(t(table_out_items))
   colnames(table_out) <- make.names(table_out_items)
@@ -295,8 +295,8 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
                        "N_post_fmt_unique", "N_shared",
                        "N_P_Donor", "D_Engraft", "P_Donor",
                        "N_P_Recipient", "R_Persist", "P_Recipient", "P_Shared", "P_Unique",
-                       "N_P_Donor_excl", "D_Engraft_excl", "P_Donor_excl",
-                       "N_P_Recipient_excl", "R_Persist_excl", "P_Recipient_excl")
+                       "D_Engraft_excl", "P_Donor_excl",
+                       "R_Persist_excl", "P_Recipient_excl")
     Value <- c(comment, transplant_id, tax_check, tax_file, biom_file, n_otus_starting,
                mapping_file, metadata_category,
                donor, n_donor_samples, recipient, n_recipient_samples, post_fmt, n_post_fmt_samples, min_abundance, n_otus_after_relative_filter,
@@ -305,8 +305,8 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
                N_otus_unique_post_fmt, N_otus_shared_throughout,
                N_P_Donor, D_Engraft, P_Donor,
                N_P_Recipient, R_Persist, P_Recipient, P_Shared, P_Unique,
-               P_Donor_excluded, D_Engraft_excluded, P_Donor_excluded,
-               P_Recipient_excluded, R_Persist_excluded, P_Recipient_excluded)
+               D_Engraft_excluded, P_Donor_excluded,
+               R_Persist_excluded, P_Recipient_excluded)
     output_table <- data.frame(Item, Value)
     pre_out <- as.data.frame(t(output_table))
     colnames(pre_out) <- make.names(Item)
