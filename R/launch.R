@@ -177,29 +177,29 @@ percent <- function(x, digits = 2, format = "f", ...) {
 #' @param N_donor number of otus in donor
 #' @param N_recipient number of otus in recipient
 #' @param N_postFMT number of otus in post-fmt
-#' @param FMT_donor number of post-fmt otus from donor
-#' @param FMT_recipient number of post-fmt otus from recipient
+#' @param N_P_Donoror number of post-fmt otus from donor
+#' @param N_P_Recipientipient number of post-fmt otus from recipient
 #' @param N_unique_postfmt number of post-fmt otus that are unique to post-fmt condition
 #' @param N_shared_postfmt number of post-fmt otus that are shared between donor and recipient
 #' @param title_text Text to generate title
 #' @return a plot that depicts FMT efficacy
 #' @export
 #'
-visualize_metrics <- function(N_donor, N_recipient, N_postFMT, FMT_donor, FMT_recipient, N_unique_postfmt, N_shared_postfmt, title_text) {
+visualize_metrics <- function(N_donor, N_recipient, N_postFMT, N_P_Don, N_P_Rec, N_unique_postfmt, N_shared_postfmt, title_text) {
 
   N_don <- N_donor
   N_rec <- N_recipient
   N_FMT <- N_postFMT
-  FMT_don <- FMT_donor
-  FMT_rec <- FMT_recipient
+  N_P_Donor <- N_P_Don
+  N_P_Recipient <- N_P_Rec
   N_unique <- N_unique_postfmt
   N_shared <- N_shared_postfmt
-  D_frac_FMT <- round(FMT_don/N_don, 3)
-  R_frac_FMT <- round(FMT_rec/N_rec, 3)
-  FMT_FracD <- round(FMT_don/N_FMT, 3)
-  FMT_FracR <- round(FMT_rec/N_FMT, 3)
-  FMT_unique <- round(N_unique/N_FMT, 3)
-  FMT_shared <- round(N_shared/N_FMT, 3)
+  D_Engraft <- round(N_P_Donor/N_don, 3)
+  R_Persist <- round(N_P_Recipient/N_rec, 3)
+  P_Donor <- round(N_P_Donor/N_FMT, 3)
+  P_Recipient <- round(N_P_Recipient/N_FMT, 3)
+  P_Unique <- round(N_unique/N_FMT, 3)
+  P_Shared <- round(N_shared/N_FMT, 3)
 
 
   maximum <- max(c(N_don, N_rec, N_FMT))
@@ -215,35 +215,32 @@ visualize_metrics <- function(N_donor, N_recipient, N_postFMT, FMT_donor, FMT_re
   p <- p + annotate("text", x = (N_don/2)+buffer, y = 48, label = paste("Donor", N_don, sep = ": "), size = 8) +
     geom_rect(aes(xmin= buffer, xmax= N_don+buffer, ymin= 30, ymax = 45), fill = 'blue3', color = 'black', size = 2) # Donor
 
-  ## D_Frac_FMT
-  p <- p + geom_rect(aes(xmin= buffer, xmax= FMT_don+buffer, ymin= 10, ymax = 25), fill = 'darkgreen', color = 'black', size = 2) +
-    geom_rect(aes(xmin= FMT_don+buffer, xmax= N_don+buffer, ymin= 10, ymax = 25), fill = 'dimgrey', color = 'black', size = 2) +
-    annotate("text", x = (N_don/2)+buffer, y = 7, label = paste("D[FracFMT]: ", D_frac_FMT, "(", FMT_don,")", sep = ""), parse = T, size = 8) # Annotate
+  ## D_Engraft
+  p <- p + geom_rect(aes(xmin= buffer, xmax= N_P_Donor+buffer, ymin= 10, ymax = 25), fill = 'darkgreen', color = 'black', size = 2) +
+    geom_rect(aes(xmin= N_P_Donor+buffer, xmax= N_don+buffer, ymin= 10, ymax = 25), fill = 'dimgrey', color = 'black', size = 2) +
+    annotate("text", x = (N_don/2)+buffer, y = 7, label = paste("D[FracFMT]: ", D_Engraft, "(", N_P_Donor,")", sep = ""), parse = T, size = 8) # Annotate
 
   ## Recipient
   p <- p + annotate("text", x = (N_don+N_rec/2)+2*buffer, y = 48, label = paste("Recipient", N_rec, sep = ": "), parse = F, size = 8) +
     geom_rect(aes(xmin= N_don + 2*buffer, xmax= N_don + 2*buffer + N_rec, ymin= 30, ymax = 45), fill = 'firebrick3', color = 'black', size = 2) # Recipient
 
-  ## R_Frac_FMT
-  p <- p + geom_rect(aes(xmin= N_don+2*buffer, xmax= N_don+N_rec+2*buffer-FMT_rec, ymin= 10, ymax = 25), fill = 'dimgrey', color = 'black', size = 2) +
-    geom_rect(aes(xmin= N_don+N_rec+2*buffer-FMT_rec, xmax= N_don+N_rec+2*buffer, ymin= 10, ymax = 25), fill = 'darkgreen', color = 'black', size = 2) +
-    annotate("text", x = (N_don+N_rec/2)+2*buffer, y = 7, label = paste("R[FracFMT]: ", R_frac_FMT, " (", FMT_rec, ")", sep = ""), parse = T, size = 8) # Annotate
+  ## R_Persist
+  p <- p + geom_rect(aes(xmin= N_don+2*buffer, xmax= N_don+N_rec+2*buffer-N_P_Recipient, ymin= 10, ymax = 25), fill = 'dimgrey', color = 'black', size = 2) +
+    geom_rect(aes(xmin= N_don+N_rec+2*buffer-N_P_Recipient, xmax= N_don+N_rec+2*buffer, ymin= 10, ymax = 25), fill = 'darkgreen', color = 'black', size = 2) +
+    annotate("text", x = (N_don+N_rec/2)+2*buffer, y = 7, label = paste("R[FracFMT]: ", R_Persist, " (", N_P_Recipient, ")", sep = ""), parse = T, size = 8) # Annotate
 
   ## FMT
-  p <- p + annotate("text", x = N_don+N_rec+(FMT_don+FMT_rec+N_shared+N_unique)/2+3*buffer, y = 48, label = paste("Post-FMT", N_FMT, sep = ": "), parse = F, size = 8) +
-    geom_rect(aes(xmin= N_don+N_rec+3*buffer, xmax=N_don+N_rec+FMT_don+FMT_rec+N_shared+N_unique+3*buffer, ymin= 30, ymax = 45), fill = 'darkgreen', color = 'black', size = 2) # FMT
+  p <- p + annotate("text", x = N_don+N_rec+(N_P_Donor+N_P_Recipient+N_shared+N_unique)/2+3*buffer, y = 48, label = paste("Post-FMT", N_FMT, sep = ": "), parse = F, size = 8) +
+    geom_rect(aes(xmin= N_don+N_rec+3*buffer, xmax=N_don+N_rec+N_P_Donor+N_P_Recipient+N_shared+N_unique+3*buffer, ymin= 30, ymax = 45), fill = 'darkgreen', color = 'black', size = 2) # FMT
 
-  ## FMT_FracD & FMT_FracR & FMT_Shared, & FMT_Unique
-  p <- p + geom_rect(aes(xmin= N_don+N_rec+3*buffer, xmax= N_don+N_rec+3*buffer+FMT_don, ymin= 10, ymax = 25), fill = 'blue3', color = 'black', size = 2) +
-    annotate("text", x = (N_don+N_rec+FMT_don/2)+3*buffer, y = 7, label = paste("FMT[FracD]: ", FMT_FracD, "(", FMT_don, ")", sep = ""), parse = T, size = 6) +
-    geom_rect(aes(xmin= N_don+N_rec+3*buffer+FMT_don, xmax= N_don+N_rec+3*buffer+FMT_don+FMT_rec, ymin= 10, ymax = 25), fill = 'firebrick3', color = 'black', size = 2) +
-    annotate('segment', x = (N_don+N_rec+FMT_don+FMT_rec/2)+3*buffer, y = 3, xend = (N_don+N_rec+FMT_don+FMT_rec/2)+3*buffer, yend = 9, colour = "black", size = 2, arrow = arrow(length = unit(0.5, "cm"))) +
-    annotate("text", x = (N_don+N_rec+FMT_don+FMT_rec/2)+3*buffer, y = 1, label =  paste("FMT[FracR]: ", FMT_FracR, "(", FMT_rec, ")", sep = ""), parse =  T, size = 6) +
-    geom_rect(aes(xmin= N_don+N_rec+3*buffer+FMT_don+FMT_rec, xmax= N_don+N_rec+3*buffer+FMT_don+FMT_rec+N_unique, ymin= 10, ymax = 25), fill = 'darkorchid3', color = 'black', size = 2) +
-    annotate("text", x = (N_don+N_rec+FMT_don+FMT_rec+N_unique/2)+3*buffer, y = 7, label = paste("FMT[Unique]: ", FMT_unique, "(",N_unique,")", sep = ""), parse = T, size = 6) +
-    geom_rect(aes(xmin= N_don+N_rec+3*buffer+FMT_don+FMT_rec+N_unique, xmax= N_don+N_rec+3*buffer+FMT_don+FMT_rec+N_unique+N_shared, ymin= 10, ymax = 25), fill = 'chartreuse3', color = 'black', size = 2) +
-    annotate('segment', x = (N_don+N_rec+FMT_don+FMT_rec+N_unique+N_shared/2)+3*buffer, y = 3, xend = (N_don+N_rec+FMT_don+FMT_rec+N_unique+N_shared/2)+3*buffer, yend = 9, colour = "black", size = 2, arrow = arrow(length = unit(0.5, "cm"))) +
-    annotate("text", x = (N_don+N_rec+FMT_don+FMT_rec+N_unique+N_shared/2)+3*buffer, y = 1, label = paste("FMT[Shared]: ", FMT_shared, "(", N_shared, ")",  sep = ""), parse = T, size = 6)
+  ## P_Donor & P_Recipient & P_Shared, & P_Unique
+  p <- p + geom_rect(aes(xmin= N_don+N_rec+3*buffer, xmax= N_don+N_rec+3*buffer+N_P_Donor, ymin= 10, ymax = 25), fill = 'blue3', color = 'black', size = 2) +
+    geom_rect(aes(xmin= N_don+N_rec+3*buffer+N_P_Donor, xmax= N_don+N_rec+3*buffer+N_P_Donor+N_P_Recipient, ymin= 10, ymax = 25), fill = 'firebrick3', color = 'black', size = 2) +
+    geom_rect(aes(xmin= N_don+N_rec+3*buffer+N_P_Donor+N_P_Recipient, xmax= N_don+N_rec+3*buffer+N_P_Donor+N_P_Recipient+N_unique, ymin= 10, ymax = 25), fill = 'darkorchid3', color = 'black', size = 2) +
+    geom_rect(aes(xmin= N_don+N_rec+3*buffer+N_P_Donor+N_P_Recipient+N_unique, xmax= N_don+N_rec+3*buffer+N_P_Donor+N_P_Recipient+N_unique+N_shared, ymin= 10, ymax = 25), fill = 'chartreuse3', color = 'black', size = 2) +
+	annotate("text", x = N_don+N_rec+(N_P_Donor+N_P_Recipient+N_shared+N_unique)/2+3*buffer, y = 7, label = paste(paste(paste("P_Donor : ", P_Donor, sep = ""), paste("P_Shared : ", P_Shared, sep = ""), sep = "         "), paste(paste("P_Recipient : ", P_Recipient, sep = ""), paste("P_Unique : ", P_Unique, sep = ""), sep = "    "), sep = "\n") ,parse = F, size = 6, hjust = 0)
+
+
 
   p <- p + ggtitle(paste("FMT Metric Visualization:", title_text, sep = "\n")) + theme(axis.line=element_blank(),
                                                                                        axis.text.x=element_blank(),
@@ -302,29 +299,29 @@ normalize_and_filter_batch <- function(biom_table, min_fraction) {
 #' @param N_donor number of otus in donor
 #' @param N_recipient number of otus in recipient
 #' @param N_postFMT number of otus in post-fmt
-#' @param FMT_donor number of post-fmt otus from donor
-#' @param FMT_recipient number of post-fmt otus from recipient
+#' @param N_P_Donoror number of post-fmt otus from donor
+#' @param N_P_Recipientipient number of post-fmt otus from recipient
 #' @param N_unique_postfmt number of post-fmt otus that are unique to post-fmt condition
 #' @param N_shared_postfmt number of post-fmt otus that are shared between donor and recipient
 #' @param title_text Text to generate title
 #' @return a plot that depicts FMT efficacy, saved to PDF
 #' @export
 #'
-visualize_metrics_batch <- function(N_donor, N_recipient, N_postFMT, FMT_donor, FMT_recipient, N_unique_postfmt, N_shared_postfmt, title_text, output_name, exp_id) {
+visualize_metrics_batch <- function(N_donor, N_recipient, N_postFMT, N_P_Donoror, N_P_Recipientipient, N_unique_postfmt, N_shared_postfmt, title_text, output_name, exp_id) {
 
   N_don <- N_donor
   N_rec <- N_recipient
   N_FMT <- N_postFMT
-  FMT_don <- FMT_donor
-  FMT_rec <- FMT_recipient
+  N_P_Donor <- N_P_Donoror
+  N_P_Recipient <- N_P_Recipientipient
   N_unique <- N_unique_postfmt
   N_shared <- N_shared_postfmt
-  D_frac_FMT <- round(FMT_don/N_don, 3)
-  R_frac_FMT <- round(FMT_rec/N_rec, 3)
-  FMT_FracD <- round(FMT_don/N_FMT, 3)
-  FMT_FracR <- round(FMT_rec/N_FMT, 3)
-  FMT_unique <- round(N_unique/N_FMT, 3)
-  FMT_shared <- round(N_shared/N_FMT, 3)
+  D_Engraft <- round(N_P_Donor/N_don, 3)
+  R_Persist <- round(N_P_Recipient/N_rec, 3)
+  P_Donor <- round(N_P_Donor/N_FMT, 3)
+  P_Recipient <- round(N_P_Recipient/N_FMT, 3)
+  P_Unique <- round(N_unique/N_FMT, 3)
+  P_Shared <- round(N_shared/N_FMT, 3)
 
   maximum <- max(c(N_don, N_rec, N_FMT))
 
@@ -340,34 +337,31 @@ visualize_metrics_batch <- function(N_donor, N_recipient, N_postFMT, FMT_donor, 
     geom_rect(aes(xmin= buffer, xmax= N_don+buffer, ymin= 30, ymax = 45), fill = 'blue3', color = 'black', size = 2) # Donor
 
   ## D_Frac_FMT
-  p <- p + geom_rect(aes(xmin= buffer, xmax= FMT_don+buffer, ymin= 10, ymax = 25), fill = 'darkgreen', color = 'black', size = 2) +
-    geom_rect(aes(xmin= FMT_don+buffer, xmax= N_don+buffer, ymin= 10, ymax = 25), fill = 'dimgrey', color = 'black', size = 2) +
-    annotate("text", x = (N_don/2)+buffer, y = 7, label = paste("D[FracFMT]: ", D_frac_FMT, "(", FMT_don,")", sep = ""), parse = T, size = 8) # Annotate
+  p <- p + geom_rect(aes(xmin= buffer, xmax= N_P_Donor+buffer, ymin= 10, ymax = 25), fill = 'darkgreen', color = 'black', size = 2) +
+    geom_rect(aes(xmin= N_P_Donor+buffer, xmax= N_don+buffer, ymin= 10, ymax = 25), fill = 'dimgrey', color = 'black', size = 2) +
+    annotate("text", x = (N_don/2)+buffer, y = 7, label = paste("D[FracFMT]: ", D_Engraft, "(", N_P_Donor,")", sep = ""), parse = T, size = 8) # Annotate
 
   ## Recipient
   p <- p + annotate("text", x = (N_don+N_rec/2)+2*buffer, y = 48, label = paste("Recipient", N_rec, sep = ": "), parse = F, size = 8) +
     geom_rect(aes(xmin= N_don + 2*buffer, xmax= N_don + 2*buffer + N_rec, ymin= 30, ymax = 45), fill = 'firebrick3', color = 'black', size = 2) # Recipient
 
   ## R_Frac_FMT
-  p <- p + geom_rect(aes(xmin= N_don+2*buffer, xmax= N_don+N_rec+2*buffer-FMT_rec, ymin= 10, ymax = 25), fill = 'dimgrey', color = 'black', size = 2) +
-    geom_rect(aes(xmin= N_don+N_rec+2*buffer-FMT_rec, xmax= N_don+N_rec+2*buffer, ymin= 10, ymax = 25), fill = 'darkgreen', color = 'black', size = 2) +
-    annotate("text", x = (N_don+N_rec/2)+2*buffer, y = 7, label = paste("R[FracFMT]: ", R_frac_FMT, " (", FMT_rec, ")", sep = ""), parse = T, size = 8) # Annotate
+  p <- p + geom_rect(aes(xmin= N_don+2*buffer, xmax= N_don+N_rec+2*buffer-N_P_Recipient, ymin= 10, ymax = 25), fill = 'dimgrey', color = 'black', size = 2) +
+    geom_rect(aes(xmin= N_don+N_rec+2*buffer-N_P_Recipient, xmax= N_don+N_rec+2*buffer, ymin= 10, ymax = 25), fill = 'darkgreen', color = 'black', size = 2) +
+    annotate("text", x = (N_don+N_rec/2)+2*buffer, y = 7, label = paste("R[FracFMT]: ", R_Persist, " (", N_P_Recipient, ")", sep = ""), parse = T, size = 8) # Annotate
 
   ## FMT
-  p <- p + annotate("text", x = N_don+N_rec+(FMT_don+FMT_rec+N_shared+N_unique)/2+3*buffer, y = 48, label = paste("Post-FMT", N_FMT, sep = ": "), parse = F, size = 8) +
-    geom_rect(aes(xmin= N_don+N_rec+3*buffer, xmax=N_don+N_rec+FMT_don+FMT_rec+N_shared+N_unique+3*buffer, ymin= 30, ymax = 45), fill = 'darkgreen', color = 'black', size = 2) # FMT
+  p <- p + annotate("text", x = N_don+N_rec+(N_P_Donor+N_P_Recipient+N_shared+N_unique)/2+3*buffer, y = 48, label = paste("Post-FMT", N_FMT, sep = ": "), parse = F, size = 8) +
+    geom_rect(aes(xmin= N_don+N_rec+3*buffer, xmax=N_don+N_rec+N_P_Donor+N_P_Recipient+N_shared+N_unique+3*buffer, ymin= 30, ymax = 45), fill = 'darkgreen', color = 'black', size = 2) # FMT
 
-  ## FMT_FracD & FMT_FracR & FMT_Shared, & FMT_Unique
-  p <- p + geom_rect(aes(xmin= N_don+N_rec+3*buffer, xmax= N_don+N_rec+3*buffer+FMT_don, ymin= 10, ymax = 25), fill = 'blue3', color = 'black', size = 2) +
-    annotate("text", x = (N_don+N_rec+FMT_don/2)+3*buffer, y = 7, label = paste("FMT[FracD]: ", FMT_FracD, "(", FMT_don, ")", sep = ""), parse = T, size = 6) +
-    geom_rect(aes(xmin= N_don+N_rec+3*buffer+FMT_don, xmax= N_don+N_rec+3*buffer+FMT_don+FMT_rec, ymin= 10, ymax = 25), fill = 'firebrick3', color = 'black', size = 2) +
-    annotate('segment', x = (N_don+N_rec+FMT_don+FMT_rec/2)+3*buffer, y = 3, xend = (N_don+N_rec+FMT_don+FMT_rec/2)+3*buffer, yend = 9, colour = "black", size = 2, arrow = arrow(length = unit(0.5, "cm"))) +
-    annotate("text", x = (N_don+N_rec+FMT_don+FMT_rec/2)+3*buffer, y = 1, label =  paste("FMT[FracR]: ", FMT_FracR, "(", FMT_rec, ")", sep = ""), parse =  T, size = 6) +
-    geom_rect(aes(xmin= N_don+N_rec+3*buffer+FMT_don+FMT_rec, xmax= N_don+N_rec+3*buffer+FMT_don+FMT_rec+N_unique, ymin= 10, ymax = 25), fill = 'darkorchid3', color = 'black', size = 2) +
-    annotate("text", x = (N_don+N_rec+FMT_don+FMT_rec+N_unique/2)+3*buffer, y = 7, label = paste("FMT[Unique]: ", FMT_unique, "(",N_unique,")", sep = ""), parse = T, size = 6) +
-    geom_rect(aes(xmin= N_don+N_rec+3*buffer+FMT_don+FMT_rec+N_unique, xmax= N_don+N_rec+3*buffer+FMT_don+FMT_rec+N_unique+N_shared, ymin= 10, ymax = 25), fill = 'chartreuse3', color = 'black', size = 2) +
-    annotate('segment', x = (N_don+N_rec+FMT_don+FMT_rec+N_unique+N_shared/2)+3*buffer, y = 3, xend = (N_don+N_rec+FMT_don+FMT_rec+N_unique+N_shared/2)+3*buffer, yend = 9, colour = "black", size = 2, arrow = arrow(length = unit(0.5, "cm"))) +
-    annotate("text", x = (N_don+N_rec+FMT_don+FMT_rec+N_unique+N_shared/2)+3*buffer, y = 1, label = paste("FMT[Shared]: ", FMT_shared, "(", N_shared, ")",  sep = ""), parse = T, size = 6)
+    ## P_Donor & P_Recipient & P_Shared, & P_Unique
+    p <- p + geom_rect(aes(xmin= N_don+N_rec+3*buffer, xmax= N_don+N_rec+3*buffer+N_P_Donor, ymin= 10, ymax = 25), fill = 'blue3', color = 'black', size = 2) +
+      geom_rect(aes(xmin= N_don+N_rec+3*buffer+N_P_Donor, xmax= N_don+N_rec+3*buffer+N_P_Donor+N_P_Recipient, ymin= 10, ymax = 25), fill = 'firebrick3', color = 'black', size = 2) +
+      geom_rect(aes(xmin= N_don+N_rec+3*buffer+N_P_Donor+N_P_Recipient, xmax= N_don+N_rec+3*buffer+N_P_Donor+N_P_Recipient+N_unique, ymin= 10, ymax = 25), fill = 'darkorchid3', color = 'black', size = 2) +
+      geom_rect(aes(xmin= N_don+N_rec+3*buffer+N_P_Donor+N_P_Recipient+N_unique, xmax= N_don+N_rec+3*buffer+N_P_Donor+N_P_Recipient+N_unique+N_shared, ymin= 10, ymax = 25), fill = 'chartreuse3', color = 'black', size = 2) +
+  	annotate("text", x = N_don+N_rec+(N_P_Donor+N_P_Recipient+N_shared+N_unique)/2+3*buffer, y = 7, label = paste(paste(paste("P_Donor : ", P_Donor, sep = ""), paste("P_Shared : ", P_Shared, sep = ""), sep = "         "), paste(paste("P_Recipient : ", P_Recipient, sep = ""), paste("P_Unique : ", P_Unique, sep = ""), sep = "    "), sep = "\n") ,parse = F, size = 6, hjust = 0)
+
+
 
   p <- p + ggtitle(paste("FMT Metric Visualization:\n", title_text, "\n(", exp_id, ")", sep = "")) + theme(axis.line=element_blank(),
                                                                                        axis.text.x=element_blank(),
