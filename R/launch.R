@@ -212,33 +212,37 @@ visualize_metrics <- function(N_donor, N_recipient, N_postFMT, N_P_Don, N_P_Rec,
   # Add rectangles
 
   ## Donor
-  p <- p + annotate("text", x = (N_don/2)+buffer, y = 48, label = paste("Donor", N_don, sep = ": "), size = 8) +
+  p <- p + annotate("text", x = (N_don/2)+buffer, y = 49, label = paste("N[Donor]", N_don, sep = ": "), parse = T, size = 8) +
     geom_rect(aes(xmin= buffer, xmax= N_don+buffer, ymin= 30, ymax = 45), fill = 'blue3', color = 'black', size = 2) # Donor
 
   ## D_Engraft
   p <- p + geom_rect(aes(xmin= buffer, xmax= N_P_Donor+buffer, ymin= 10, ymax = 25), fill = 'darkgreen', color = 'black', size = 2) +
     geom_rect(aes(xmin= N_P_Donor+buffer, xmax= N_don+buffer, ymin= 10, ymax = 25), fill = 'dimgrey', color = 'black', size = 2) +
-    annotate("text", x = (N_don/2)+buffer, y = 7, label = paste("D[Engraft]: ", D_Engraft, "(", N_P_Donor,")", sep = ""), parse = T, size = 8) # Annotate
+    annotate("text", x = (N_don/2)+buffer, y = 7, label = paste("D[Engraft]: ", D_Engraft, sep = ""), parse = T, size = 8) # Annotate
 
   ## Recipient
-  p <- p + annotate("text", x = (N_don+N_rec/2)+2*buffer, y = 48, label = paste("Recipient", N_rec, sep = ": "), parse = F, size = 8) +
+  p <- p + annotate("text", x = (N_don+N_rec/2)+2*buffer, y = 49, label = paste("N[Recipient]", N_rec, sep = ": "), parse = T, size = 8) +
     geom_rect(aes(xmin= N_don + 2*buffer, xmax= N_don + 2*buffer + N_rec, ymin= 30, ymax = 45), fill = 'firebrick3', color = 'black', size = 2) # Recipient
 
   ## R_Persist
   p <- p + geom_rect(aes(xmin= N_don+2*buffer, xmax= N_don+N_rec+2*buffer-N_P_Recipient, ymin= 10, ymax = 25), fill = 'dimgrey', color = 'black', size = 2) +
     geom_rect(aes(xmin= N_don+N_rec+2*buffer-N_P_Recipient, xmax= N_don+N_rec+2*buffer, ymin= 10, ymax = 25), fill = 'darkgreen', color = 'black', size = 2) +
-    annotate("text", x = (N_don+N_rec/2)+2*buffer, y = 7, label = paste("R[Persist]: ", R_Persist, " (", N_P_Recipient, ")", sep = ""), parse = T, size = 8) # Annotate
+    annotate("text", x = (N_don+N_rec/2)+2*buffer, y = 7, label = paste("R[Persist]: ", R_Persist, sep = ""), parse = T, size = 8) # Annotate
 
   ## FMT
-  p <- p + annotate("text", x = N_don+N_rec+(N_P_Donor+N_P_Recipient+N_shared+N_unique)/2+3*buffer, y = 48, label = paste("Post-FMT", N_FMT, sep = ": "), parse = F, size = 8) +
+  p <- p + annotate("text", x = N_don+N_rec+(N_P_Donor+N_P_Recipient+N_shared+N_unique)/2+3*buffer, y = 49, label = paste("N[Post-FMT]", N_FMT, sep = ": "), parse = T, size = 8) +
     geom_rect(aes(xmin= N_don+N_rec+3*buffer, xmax=N_don+N_rec+N_P_Donor+N_P_Recipient+N_shared+N_unique+3*buffer, ymin= 30, ymax = 45), fill = 'darkgreen', color = 'black', size = 2) # FMT
 
-  ## P_Donor & P_Recipient & P_Shared, & P_Unique
-  p <- p + geom_rect(aes(xmin= N_don+N_rec+3*buffer, xmax= N_don+N_rec+3*buffer+N_P_Donor, ymin= 10, ymax = 25), fill = 'blue3', color = 'black', size = 2) +
-    geom_rect(aes(xmin= N_don+N_rec+3*buffer+N_P_Donor, xmax= N_don+N_rec+3*buffer+N_P_Donor+N_P_Recipient, ymin= 10, ymax = 25), fill = 'firebrick3', color = 'black', size = 2) +
-    geom_rect(aes(xmin= N_don+N_rec+3*buffer+N_P_Donor+N_P_Recipient, xmax= N_don+N_rec+3*buffer+N_P_Donor+N_P_Recipient+N_unique, ymin= 10, ymax = 25), fill = 'darkorchid3', color = 'black', size = 2) +
-    geom_rect(aes(xmin= N_don+N_rec+3*buffer+N_P_Donor+N_P_Recipient+N_unique, xmax= N_don+N_rec+3*buffer+N_P_Donor+N_P_Recipient+N_unique+N_shared, ymin= 10, ymax = 25), fill = 'chartreuse3', color = 'black', size = 2) +
-	annotate("text", x = N_don+N_rec+(N_P_Donor+N_P_Recipient+N_shared+N_unique)/4+3*buffer, y = 7, label = paste(paste(paste("P[Donor] : ", P_Donor, sep = ""), paste("P[Shared] : ", P_Shared, sep = ""), sep = "         "), paste(paste("P[Recipient] : ", P_Recipient, sep = ""), paste("P[Unique] : ", P_Unique, sep = ""), sep = "    "), sep = "\n") ,parse = F, size = 6, hjust = 0)
+    ## P_Donor & P_Recipient & P_Shared, & P_Unique
+    p <- p + geom_rect(aes(xmin= N_don+N_rec+3*buffer, xmax= N_don+N_rec+3*buffer+N_P_Donor, ymin= 10, ymax = 25), fill = 'blue3', color = 'black', size = 2) +
+      geom_rect(aes(xmin= N_don+N_rec+3*buffer+N_P_Donor, xmax= N_don+N_rec+3*buffer+N_P_Donor+N_P_Recipient, ymin= 10, ymax = 25), fill = 'firebrick3', color = 'black', size = 2) +
+      geom_rect(aes(xmin= N_don+N_rec+3*buffer+N_P_Donor+N_P_Recipient, xmax= N_don+N_rec+3*buffer+N_P_Donor+N_P_Recipient+N_unique, ymin= 10, ymax = 25), fill = 'darkorchid3', color = 'black', size = 2) +
+      geom_rect(aes(xmin= N_don+N_rec+3*buffer+N_P_Donor+N_P_Recipient+N_unique, xmax= N_don+N_rec+3*buffer+N_P_Donor+N_P_Recipient+N_unique+N_shared, ymin= 10, ymax = 25), fill = 'chartreuse3', color = 'black', size = 2) +
+  	annotate("text", x = N_don+N_rec+(N_P_Donor+N_P_Recipient+N_shared+N_unique)/6+3*buffer, y = 6.5, label = paste("P[Donor] : ", P_Donor, sep = ""), parse = T, size = 7, hjust = 0) + 
+	annotate("text", x = N_don+N_rec+3*(N_P_Donor+N_P_Recipient+N_shared+N_unique)/6+3*buffer, y = 6.5, label = paste("P[Shared] : ", P_Shared, sep = ""), parse = T, size = 7, hjust = 0) + 
+	annotate("text", x = N_don+N_rec+(N_P_Donor+N_P_Recipient+N_shared+N_unique)/6+3*buffer, y = 3, label = paste("P[Recipient] : ", P_Recipient, sep = ""), parse = T, size = 7, hjust = 0) + 
+	annotate("text", x = N_don+N_rec+3*(N_P_Donor+N_P_Recipient+N_shared+N_unique)/6+3*buffer, y = 3, label = paste("P[Unique] : ", P_Unique, sep = ""), parse = T, size = 7, hjust = 0) 
+  
 
 
 
@@ -333,25 +337,25 @@ visualize_metrics_batch <- function(N_donor, N_recipient, N_postFMT, N_P_Donoror
   # Add rectangles
 
   ## Donor
-  p <- p + annotate("text", x = (N_don/2)+buffer, y = 48, label = paste("Donor", N_don, sep = ": "), size = 8) +
+  p <- p + annotate("text", x = (N_don/2)+buffer, y = 49, label = paste("N[Donor]", N_don, sep = ": "), parse = T, size = 8) +
     geom_rect(aes(xmin= buffer, xmax= N_don+buffer, ymin= 30, ymax = 45), fill = 'blue3', color = 'black', size = 2) # Donor
 
-  ## D_Frac_FMT
+  ## D_Engraft
   p <- p + geom_rect(aes(xmin= buffer, xmax= N_P_Donor+buffer, ymin= 10, ymax = 25), fill = 'darkgreen', color = 'black', size = 2) +
     geom_rect(aes(xmin= N_P_Donor+buffer, xmax= N_don+buffer, ymin= 10, ymax = 25), fill = 'dimgrey', color = 'black', size = 2) +
-    annotate("text", x = (N_don/2)+buffer, y = 7, label = paste("D[Engraft]: ", D_Engraft, "(", N_P_Donor,")", sep = ""), parse = T, size = 8) # Annotate
+    annotate("text", x = (N_don/2)+buffer, y = 7, label = paste("D[Engraft]: ", D_Engraft, sep = ""), parse = T, size = 8) # Annotate
 
   ## Recipient
-  p <- p + annotate("text", x = (N_don+N_rec/2)+2*buffer, y = 48, label = paste("Recipient", N_rec, sep = ": "), parse = F, size = 8) +
+  p <- p + annotate("text", x = (N_don+N_rec/2)+2*buffer, y = 49, label = paste("N[Recipient]", N_rec, sep = ": "), parse = T, size = 8) +
     geom_rect(aes(xmin= N_don + 2*buffer, xmax= N_don + 2*buffer + N_rec, ymin= 30, ymax = 45), fill = 'firebrick3', color = 'black', size = 2) # Recipient
 
-  ## R_Frac_FMT
+  ## R_Persist
   p <- p + geom_rect(aes(xmin= N_don+2*buffer, xmax= N_don+N_rec+2*buffer-N_P_Recipient, ymin= 10, ymax = 25), fill = 'dimgrey', color = 'black', size = 2) +
     geom_rect(aes(xmin= N_don+N_rec+2*buffer-N_P_Recipient, xmax= N_don+N_rec+2*buffer, ymin= 10, ymax = 25), fill = 'darkgreen', color = 'black', size = 2) +
-    annotate("text", x = (N_don+N_rec/2)+2*buffer, y = 7, label = paste("R[Persist]: ", R_Persist, " (", N_P_Recipient, ")", sep = ""), parse = T, size = 8) # Annotate
+    annotate("text", x = (N_don+N_rec/2)+2*buffer, y = 7, label = paste("R[Persist]: ", R_Persist, sep = ""), parse = T, size = 8) # Annotate
 
   ## FMT
-  p <- p + annotate("text", x = N_don+N_rec+(N_P_Donor+N_P_Recipient+N_shared+N_unique)/2+3*buffer, y = 48, label = paste("Post-FMT", N_FMT, sep = ": "), parse = F, size = 8) +
+  p <- p + annotate("text", x = N_don+N_rec+(N_P_Donor+N_P_Recipient+N_shared+N_unique)/2+3*buffer, y = 49, label = paste("N[Post-FMT]", N_FMT, sep = ": "), parse = T, size = 8) +
     geom_rect(aes(xmin= N_don+N_rec+3*buffer, xmax=N_don+N_rec+N_P_Donor+N_P_Recipient+N_shared+N_unique+3*buffer, ymin= 30, ymax = 45), fill = 'darkgreen', color = 'black', size = 2) # FMT
 
     ## P_Donor & P_Recipient & P_Shared, & P_Unique
@@ -359,10 +363,10 @@ visualize_metrics_batch <- function(N_donor, N_recipient, N_postFMT, N_P_Donoror
       geom_rect(aes(xmin= N_don+N_rec+3*buffer+N_P_Donor, xmax= N_don+N_rec+3*buffer+N_P_Donor+N_P_Recipient, ymin= 10, ymax = 25), fill = 'firebrick3', color = 'black', size = 2) +
       geom_rect(aes(xmin= N_don+N_rec+3*buffer+N_P_Donor+N_P_Recipient, xmax= N_don+N_rec+3*buffer+N_P_Donor+N_P_Recipient+N_unique, ymin= 10, ymax = 25), fill = 'darkorchid3', color = 'black', size = 2) +
       geom_rect(aes(xmin= N_don+N_rec+3*buffer+N_P_Donor+N_P_Recipient+N_unique, xmax= N_don+N_rec+3*buffer+N_P_Donor+N_P_Recipient+N_unique+N_shared, ymin= 10, ymax = 25), fill = 'chartreuse3', color = 'black', size = 2) +
-  	annotate("text", x = N_don+N_rec+(N_P_Donor+N_P_Recipient+N_shared+N_unique)/5+3*buffer, y = 6, label = paste("P[Donor] : ", P_Donor, sep = ""), parse = T, size = 6, hjust = 0) + 
-	annotate("text", x = N_don+N_rec+3*(N_P_Donor+N_P_Recipient+N_shared+N_unique)/5+3*buffer, y = 6, label = paste("P[Shared] : ", P_Shared, sep = ""), parse = T, size = 6, hjust = 0) + 
-	annotate("text", x = N_don+N_rec+(N_P_Donor+N_P_Recipient+N_shared+N_unique)/5+3*buffer, y = 3, label = paste("P[Recipient] : ", P_Recipient, sep = ""), parse = T, size = 6, hjust = 0) + 
-	annotate("text", x = N_don+N_rec+3*(N_P_Donor+N_P_Recipient+N_shared+N_unique)/5+3*buffer, y = 3, label = paste("P[Unique] : ", P_Unique, sep = ""), parse = T, size = 6, hjust = 0) 
+  	annotate("text", x = N_don+N_rec+(N_P_Donor+N_P_Recipient+N_shared+N_unique)/6+3*buffer, y = 6.5, label = paste("P[Donor] : ", P_Donor, sep = ""), parse = T, size = 7, hjust = 0) + 
+	annotate("text", x = N_don+N_rec+3*(N_P_Donor+N_P_Recipient+N_shared+N_unique)/6+3*buffer, y = 6.5, label = paste("P[Shared] : ", P_Shared, sep = ""), parse = T, size = 7, hjust = 0) + 
+	annotate("text", x = N_don+N_rec+(N_P_Donor+N_P_Recipient+N_shared+N_unique)/6+3*buffer, y = 3, label = paste("P[Recipient] : ", P_Recipient, sep = ""), parse = T, size = 7, hjust = 0) + 
+	annotate("text", x = N_don+N_rec+3*(N_P_Donor+N_P_Recipient+N_shared+N_unique)/6+3*buffer, y = 3, label = paste("P[Unique] : ", P_Unique, sep = ""), parse = T, size = 7, hjust = 0) 
 
 
 
