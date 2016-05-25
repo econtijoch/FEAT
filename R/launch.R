@@ -359,7 +359,7 @@ visualize_metrics_batch <- function(N_donor, N_recipient, N_postFMT, N_P_Donoror
       geom_rect(aes(xmin= N_don+N_rec+3*buffer+N_P_Donor, xmax= N_don+N_rec+3*buffer+N_P_Donor+N_P_Recipient, ymin= 10, ymax = 25), fill = 'firebrick3', color = 'black', size = 2) +
       geom_rect(aes(xmin= N_don+N_rec+3*buffer+N_P_Donor+N_P_Recipient, xmax= N_don+N_rec+3*buffer+N_P_Donor+N_P_Recipient+N_unique, ymin= 10, ymax = 25), fill = 'darkorchid3', color = 'black', size = 2) +
       geom_rect(aes(xmin= N_don+N_rec+3*buffer+N_P_Donor+N_P_Recipient+N_unique, xmax= N_don+N_rec+3*buffer+N_P_Donor+N_P_Recipient+N_unique+N_shared, ymin= 10, ymax = 25), fill = 'chartreuse3', color = 'black', size = 2) +
-  	annotate("text", x = N_don+N_rec+(N_P_Donor+N_P_Recipient+N_shared+N_unique)/4+3*buffer, y = 7, label = paste(paste(paste("P[Donor] : ", P_Donor, sep = ""), expression(paste("P[Shared] : ", P_Shared, sep = "")), sep = "         "), paste(paste("P[Recipient] : ", P_Recipient, sep = ""), paste("P[Unique] : ", P_Unique, sep = ""), sep = "    "), sep = "\n") ,parse = F, size = 6, hjust = 0)
+  	annotate("text", x = N_don+N_rec+(N_P_Donor+N_P_Recipient+N_shared+N_unique)/4+3*buffer, y = 7, label = expression(paste(paste(paste("P[Donor] : ", P_Donor, sep = ""), paste("P[Shared] : ", P_Shared, sep = ""), sep = "         "), paste(paste("P[Recipient] : ", P_Recipient, sep = ""), paste("P[Unique] : ", P_Unique, sep = ""), sep = "    "), sep = "\n")) ,parse = F, size = 6, hjust = 0)
 
 
 
