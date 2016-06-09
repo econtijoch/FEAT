@@ -488,7 +488,7 @@ shinyServer(function(input, output, session) {
     return(nrow(P_Donor_table()))
   })
   output$N_P_Donor <- renderUI({
-	  HTML(paste("<strong>N", tags$sub("Donor| Post-FMT"), ":</strong>", " ", N_P_Donor(), sep = ""))
+	  HTML(paste("<strong>N", tags$sub("Donor| Post-FMT"), ":</strong>", " ",N_P_Donor(), sep = ""))
   })
 
   # D_Engraft the proportion of donor OTUs that made it into the post-transplant samples
@@ -498,7 +498,7 @@ shinyServer(function(input, output, session) {
     return(fraction)
   })
   output$D_Engraft <- renderUI({
-	  	  HTML(paste("<strong>D", tags$sub("Engraft"), ":</strong>", " ", D_Engraft(), sep = ""))
+	  	  HTML(paste("<strong>D", tags$sub("Engraft"), ":</strong>", " ", round(D_Engraft(),3), sep = ""))
   })
 
   # P_Donor, the proportion of OTUs in post-transplant samples that came from the donor
@@ -508,7 +508,7 @@ shinyServer(function(input, output, session) {
     return(fraction)
   })
   output$P_Donor <- renderUI({
-	  	  HTML(paste("<strong>P", tags$sub("Donor"), ":</strong>", " ", P_Donor(), sep = ""))
+	  	  HTML(paste("<strong>P", tags$sub("Donor"), ":</strong>", " ", round(P_Donor(),3), sep = ""))
   })
 
   # P_Recipient_table, the table of OTUs in the post-transplant samples that came from the recipient
@@ -535,7 +535,7 @@ shinyServer(function(input, output, session) {
     return(fraction)
   })
   output$R_Persist <- renderUI({
-	  	  HTML(paste("<strong>R", tags$sub("Persist"), ":</strong>", " ", R_Persist(), sep = ""))
+	  	  HTML(paste("<strong>R", tags$sub("Persist"), ":</strong>", " ", round(R_Persist(),3), sep = ""))
   })
 
   # P_Recipient, the proportion of OTUs in post-transplant samples that came from the recipient
@@ -545,7 +545,7 @@ shinyServer(function(input, output, session) {
     return(fraction)
   })
   output$P_Recipient <- renderUI({
-	  	  HTML(paste("<strong>P", tags$sub("Recipient"), ":</strong>", " ", P_Recipient(), sep = ""))
+	  	  HTML(paste("<strong>P", tags$sub("Recipient"), ":</strong>", " ", round(P_Recipient(),3), sep = ""))
   })
   
   # P_Shared , proporiton of OTUs in post-transplant samples that are shared
@@ -556,7 +556,7 @@ shinyServer(function(input, output, session) {
   })
 
   output$P_Shared <- renderUI({
-	  	  HTML(paste("<strong>P", tags$sub("Shared"), ":</strong>", " ", P_Shared(), sep = ""))
+	  	  HTML(paste("<strong>P", tags$sub("Shared"), ":</strong>", " ", round(P_Shared(),3), sep = ""))
   })
   
   # P_Unique, proporiton of OTUs in post-transplant samples that are unique
@@ -566,7 +566,7 @@ shinyServer(function(input, output, session) {
 	  return(fraction)
   })
   output$P_Unique <- renderUI({
-	  	  HTML(paste("<strong>P", tags$sub("Unique"), ":</strong>", " ", P_Unique(), sep = ""))
+	  	  HTML(paste("<strong>P", tags$sub("Unique"), ":</strong>", " ", round(P_Unique(),3), sep = ""))
   })
 
 
