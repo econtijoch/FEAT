@@ -340,17 +340,24 @@ shinyServer(function(input, output, session) {
   N_Donor <- reactive({
     if (is.null(donor_unique())) {return()}
     return(nrow(donor_unique()))})
-  output$N_Donor <- renderText({N_Donor()})
+
+  output$N_Donor <- renderUI({
+	  HTML(paste("<strong>N", tags$sub("Donor"), ":</strong>", " ", N_Donor(), sep = ""))
+  })
 
   N_Recipient <- reactive({
     if (is.null(recipient_unique())) {return()}
     return(nrow(recipient_unique()))})
-  output$N_Recipient <- renderText({N_Recipient()})
+  output$N_Recipient <- renderUI({
+  	HTML(paste("<strong>N", tags$sub("Recipient"), ":</strong>", " ", N_Recipient(), sep = ""))
+  })
 
   N_P_Unique <- reactive({
     if (is.null(post_fmt_unique())) {return()}
     return(nrow(post_fmt_unique()))})
-  output$N_P_Unique <- renderText({N_P_Unique()})
+  output$N_P_Unique <- renderUI({
+  HTML(paste("<strong>N", tags$sub("Post-FMT (Unique)"), ":</strong>", " ", N_P_Unique(), sep = ""))
+  })
 
   N_otus_nonunique_post_fmt <- reactive({
     if (is.null(post_fmt_nonqunique())) {return()}
@@ -365,7 +372,9 @@ shinyServer(function(input, output, session) {
   N_P_Shared <- reactive({
     if (is.null(shared_throughout())) {return()}
     return(nrow(shared_throughout()))})
-  output$N_P_Shared <- renderText({N_P_Shared()})
+  output$N_P_Shared <- renderUI({
+  	HTML(paste("<strong>N", tags$sub("Post-FMT (Shared)"), ":</strong>", " ", N_P_Shared(), sep = ""))
+  })
 
   N_otus_post_fmt_nonzero <- reactive({
     if (is.null(post_fmt_nonzero())) {return()}
@@ -377,7 +386,9 @@ shinyServer(function(input, output, session) {
     if (is.null(post_fmt_selected())) {return()}
     return(nrow(post_fmt_selected()))
   })
-  output$N_P_Total <- renderText({N_P_Total()})
+  output$N_P_Total <- renderUI({
+  	HTML(paste("<strong>N", tags$sub("Post-FMT (Total)"), ":</strong>", " ", N_P_Total(), sep = ""))
+  })
 
   output$remove_OTUs <- renderText({
     if (input$remove_OTUs_test_specific){
@@ -476,7 +487,9 @@ shinyServer(function(input, output, session) {
     if (is.null(P_Donor_table())) {return()}
     return(nrow(P_Donor_table()))
   })
-  output$N_P_Donor <- renderText({N_P_Donor()})
+  output$N_P_Donor <- renderUI({
+	  HTML(paste("<strong>N", tags$sub("Donor| Post-FMT"), ":</strong>", " ", N_P_Donor(), sep = ""))
+  })
 
   # D_Engraft the proportion of donor OTUs that made it into the post-transplant samples
   D_Engraft <- reactive({
@@ -484,7 +497,9 @@ shinyServer(function(input, output, session) {
 	fraction <- N_P_Donor()/N_Donor()
     return(fraction)
   })
-  output$D_Engraft <- renderText({D_Engraft()})
+  output$D_Engraft <- renderUI({
+	  	  HTML(paste("<strong>D", tags$sub("Engraft"), ":</strong>", " ", D_Engraft(), sep = ""))
+  })
 
   # P_Donor, the proportion of OTUs in post-transplant samples that came from the donor
   P_Donor <- reactive({
@@ -492,7 +507,9 @@ shinyServer(function(input, output, session) {
     fraction <- N_P_Donor()/N_P_Total()
     return(fraction)
   })
-  output$P_Donor <- renderText({P_Donor()})
+  output$P_Donor <- renderUI({
+	  	  HTML(paste("<strong>P", tags$sub("Donor"), ":</strong>", " ", P_Donor(), sep = ""))
+  })
 
   # P_Recipient_table, the table of OTUs in the post-transplant samples that came from the recipient
   P_Recipient_table <- reactive({
@@ -507,7 +524,9 @@ shinyServer(function(input, output, session) {
     if (is.null(P_Recipient_table())) {return()}
     return(nrow(P_Recipient_table()))
   })
-  output$N_P_Recipient <- renderText({N_P_Recipient()})
+  output$N_P_Recipient <- renderUI({
+	  	  HTML(paste("<strong>N", tags$sub("Recipient | Post-FMT"), ":</strong>", " ", N_P_Recipient(), sep = ""))
+  })
 
   # R_Persist the proportion of recipient OTUs that remained in the post-transplant samples
   R_Persist <- reactive({
@@ -515,7 +534,9 @@ shinyServer(function(input, output, session) {
     fraction <- N_P_Recipient()/N_Recipient()
     return(fraction)
   })
-  output$R_Persist <- renderText({R_Persist()})
+  output$R_Persist <- renderUI({
+	  	  HTML(paste("<strong>R", tags$sub("Persist"), ":</strong>", " ", R_Persist(), sep = ""))
+  })
 
   # P_Recipient, the proportion of OTUs in post-transplant samples that came from the recipient
   P_Recipient <- reactive({
@@ -523,7 +544,9 @@ shinyServer(function(input, output, session) {
     fraction <- N_P_Recipient()/N_P_Total()
     return(fraction)
   })
-  output$P_Recipient <- renderText({P_Recipient()})
+  output$P_Recipient <- renderUI({
+	  	  HTML(paste("<strong>P", tags$sub("Recipient"), ":</strong>", " ", P_Recipient(), sep = ""))
+  })
   
   # P_Shared , proporiton of OTUs in post-transplant samples that are shared
   P_Shared <- reactive({
@@ -531,7 +554,10 @@ shinyServer(function(input, output, session) {
 	  fraction <- N_P_Shared()/N_P_Total()
 	  return(fraction)  	
   })
-  output$P_Shared <- renderText({P_Shared()})
+
+  output$P_Shared <- renderUI({
+	  	  HTML(paste("<strong>P", tags$sub("Shared"), ":</strong>", " ", P_Shared(), sep = ""))
+  })
   
   # P_Unique, proporiton of OTUs in post-transplant samples that are unique
   P_Unique <- reactive({
@@ -539,7 +565,9 @@ shinyServer(function(input, output, session) {
 	  fraction <- N_P_Unique()/N_P_Total()
 	  return(fraction)
   })
-  output$P_Unique <- renderText({P_Unique()})
+  output$P_Unique <- renderUI({
+	  	  HTML(paste("<strong>P", tags$sub("Unique"), ":</strong>", " ", P_Unique(), sep = ""))
+  })
 
 
   ##########################################################################################
