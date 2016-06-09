@@ -31,10 +31,10 @@ shinyUI(fluidPage(
              fluidRow(column(6,
                              wellPanel(h3("1) Load Mapping File & OTU Table"),
                                        fileInput("mapping_file", label = h5("Mapping File"), accept = c('txt', 'text/plain')),
-									   span(title="This should be the same mapping file used to create your OTU table, and should contain at least one metadata category to select the details of the transplant for your experiment of interest.", style = 'color:blue', strong("?")),		 
+									   bsPopover(id = 'mapping_file', content = "This should be the same mapping file used to create your OTU table, and should contain at least one metadata category to select the details of the transplant for your experiment of interest.", title = 'Mapping File', placement = 'top', trigger = 'hover'),		 
                                        hr(),
                                        fileInput("input_otu_table", label = h5("Input OTU Table"), accept = 'Document'),
-									   ##helpPopup("Input OTU Table", "Absolute-filtered OTU table in hdf5 BIOM (.biom) format.", placement='right', trigger='hover'),
+									   bsPopover("input_otu_table", "Input OTU Table", "Absolute-filtered OTU table in hdf5 BIOM (.biom) format.", placement='top', trigger='hover'),
                                        hr(),
                                        span(strong(textOutput('zeroeth_check')), style = "color:green"),
                                        hr(),
@@ -52,7 +52,7 @@ shinyUI(fluidPage(
                                                         hr(),
                                                         uiOutput("post_fmt"),
                                                         actionButton("split_into_experiment", "Set/Update FMT Details"),
-														#helpPopup("Select Sample Metadata", "Select the metadata category to then select your donor, recipient, and post-FMT metadata tags from.", placement='right', trigger='hover'),
+														bsPopover('split_into_experiment', "Select Sample Metadata", "Select the metadata category to then select your donor, recipient, and post-FMT metadata tags from.", placement='bottom', trigger='hover'),
                                                         hr(),
                                                         span(strong(textOutput('second_check')), style = "color:green"),
                                                         hr(),
@@ -66,7 +66,7 @@ shinyUI(fluidPage(
                              conditionalPanel(condition = "output.second_check == 'Experiment-specific table created...'",
                                               wellPanel(h3("3) Normalize and Filter Samples"),
                                                         numericInput("min_OTU_fraction", label = h5("Minimum Relative Abundance Filter"), min = 0.0001, max = 0.1, value = 0.001),
-														#helpPopup("Relative Abundance Filter", "The minimum fraction that an OTU must represent in a sample (in the sample it is most abundant), in order to be kept. (i.e. an OTU must represent at least this fraction of the microbiota of any one sample in order to be kept)", placement='top', trigger='hover'),
+														bsPopover("min_OTU_fraction", "Relative Abundance Filter", "The minimum fraction that an OTU must represent in a sample (in the sample it is most abundant), in order to be kept. (i.e. an OTU must represent at least this fraction of the microbiota of any one sample in order to be kept)", placement='top', trigger='hover'),
                                                         hr(),
                                                         span(strong(textOutput('third_check')), style = "color:green"),
                                                         hr(),
@@ -76,7 +76,7 @@ shinyUI(fluidPage(
                              conditionalPanel(condition = "output.third_check == 'Experiment-specific table has been normalized and filtered...'",
                                               wellPanel(h3("4) Remove fleeting OTUs"),
                                                         sliderInput("min_fraction", label = h5("Minimum fraction of samples with a non-zero abundance"), min = 0, max = 1.0, value = 2/3),
-														#helpPopup("Fleeting Filter", "The minimum fraction of samples within a condition that must have a non-zero abundance of an OTU in order for it to be retained as reliably present in that condition.", placement = 'top', trigger = 'hover'),
+														bsPopover("min_fraction", "Fleeting Filter", "The minimum fraction of samples within a condition that must have a non-zero abundance of an OTU in order for it to be retained as reliably present in that condition.", placement = 'top', trigger = 'hover'),
                                                         h5("Resultant OTUs:"),
                                                         textOutput("num_otus_after_nonzero_filter")
                                               )),
@@ -85,7 +85,7 @@ shinyUI(fluidPage(
                                                         selectInput("comparison_test", label = h5("Select metric to compare abundances"), choices = list("Median" = "Median", "Mean" = "Mean"), selected = "Median"),
                                                         hr(),
                                                         checkboxInput("remove_OTUs_test_specific", label = "Exclude post-FMT Unique and Shared OTUs", value = FALSE),
-														#helpPopup("Exclude?", "Exclude OTUs that are only in the post-transplant samples (i.e. neither in the donor nor the pre-transplant recipient samples), or shared in all conditions (donor, recipient and post-transplant recipient)", placement = 'top', trigger = 'hover'),
+														bsPopover('remove_OTUs_test_specific', "Exclude?", "Exclude OTUs that are only in the post-transplant samples (i.e. neither in the donor nor the pre-transplant recipient samples), or shared in all conditions (donor, recipient and post-transplant recipient)", placement = 'top', trigger = 'hover'),
                                                         span(strong("Finished!"), style = "color:green"))
                              ))
              )
