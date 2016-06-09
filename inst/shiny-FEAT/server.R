@@ -727,7 +727,7 @@ shinyServer(function(input, output, session) {
 
   plot_inputs <- reactive({
     if(!is.null(input$plot_x) && !is.null(input$plot_y)){
-      output <- paste(input$plot_x, input$plot_y, input$jitter, input$smooth, input$plot_color_by, input$facet_row, input$facet_col, input$point_size)
+      output <- paste(input$distance_method, input$plot_x, input$plot_y, input$jitter, input$smooth, input$plot_color_by, input$facet_row, input$facet_col, input$point_size)
     }
     else {
       output <- NULL
