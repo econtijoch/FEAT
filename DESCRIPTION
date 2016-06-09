@@ -17,4 +17,5 @@ Depends:
   DT,
   ggplot2,
   vegan,
-  lazyeval
+  lazyeval,
+  shinyBS
