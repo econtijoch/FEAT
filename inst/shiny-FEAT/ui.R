@@ -1,6 +1,25 @@
 require(shiny)
 require(DT)
 options(shiny.maxRequestSize=200*1024^2)
+helpPopup <- function(title, content,
+                      placement=c('right', 'top', 'left', 'bottom'),
+                      trigger=c('click', 'hover', 'focus', 'manual')) {
+  tagList(
+    singleton(
+      tags$head(
+        tags$script("$(function() { $(\"[data-toggle='popover']\").popover(); })")
+      )
+    ),
+    tags$a(
+      href = "#", class = "btn btn-mini", `data-toggle` = "popover",
+      title = title, `data-content` = content, `data-animation` = TRUE,
+      `data-placement` = match.arg(placement, several.ok=TRUE)[1],
+      `data-trigger` = match.arg(trigger, several.ok=TRUE)[1],
+      
+      icon("question")
+    )
+  )
+}
 
 # Define UI for application
 shinyUI(fluidPage(
@@ -29,20 +48,18 @@ shinyUI(fluidPage(
              h2("Select Inputs & Settings"),
              fluidRow(column(6,
                              wellPanel(h3("1) Load Mapping File & OTU Table"),
-                                       fileInput("mapping_file", label = h5("Mapping File"), accept = c('txt', 'text/plain')),
-                                       helpText("This should be the same mapping file used to create your OTU table, and should contain at least one metadata category to select the details of the transplant for your experiment of interest."),
+                                       fileInput("mapping_file", label = c("Mapping File", helpPopup("Mapping File", "This should be the same mapping file used to create your OTU table, and should contain at least one metadata category to select the details of the transplant for your experiment of interest.", placement='right', trigger='hover')), accept = c('txt', 'text/plain')),		 
                                        hr(),
-                                       fileInput("input_otu_table", label = h5("Input OTU Table"), accept = 'Document'),
-                                       helpText("Absolute-filtered OTU table in hdf5 BIOM (.biom) format."),
+                                       fileInput("input_otu_table", label = c("Input OTU Table", helpPopup("Input OTU Table", "Absolute-filtered OTU table in hdf5 BIOM (.biom) format.", placement='right', trigger='hover')), accept = 'Document'),
                                        hr(),
                                        span(strong(textOutput('zeroeth_check')), style = "color:green"),
                                        hr(),
                                        h5("OTUs to start:"),
                                        textOutput("raw_otu_count")
+									   
                              ),
                              conditionalPanel(condition = "output.zeroeth_check == 'Table loaded successfully...'",
                                               wellPanel(h3("2) Select FMT Samples"),
-                                                        helpText("Select the metadata category to then select your donor, recipient, and post-FMT metadata tags from."),
                                                         uiOutput("compare_options"),
                                                         hr(),
                                                         uiOutput("donor"),
@@ -50,7 +67,7 @@ shinyUI(fluidPage(
                                                         uiOutput("recipient"),
                                                         hr(),
                                                         uiOutput("post_fmt"),
-                                                        actionButton("split_into_experiment", "Set/Update FMT Details"),
+                                                        actionButton("split_into_experiment", "Set/Update FMT Details"),helpPopup("Select Sample Metadata", "Select the metadata category to then select your donor, recipient, and post-FMT metadata tags from.", placement='right', trigger='hover'),
                                                         hr(),
                                                         span(strong(textOutput('second_check')), style = "color:green"),
                                                         hr(),
@@ -58,13 +75,12 @@ shinyUI(fluidPage(
                                                         span(strong(textOutput('num_recipient_samples')), style = "color:red"),
                                                         span(strong(textOutput('num_post_fmt_samples')), style = "color:green")
                                                         )
-                                              )
+											)
                              ),
                       column(6,
                              conditionalPanel(condition = "output.second_check == 'Experiment-specific table created...'",
                                               wellPanel(h3("3) Normalize and Filter Samples"),
-                                                        numericInput("min_OTU_fraction", label = h5("Minimum Relative Abundance Filter"), min = 0.0001, max = 0.1, value = 0.001),
-                                                        helpText("The minimum fraction that an OTU must represent in a sample (in the sample it is most abundant), in order to be kept. (i.e. an OTU must represent at least this fraction of the microbiota of any one sample in order to be kept)"),
+                                                        numericInput("min_OTU_fraction", label = c("Minimum Relative Abundance Filter", helpPopup("Relative Abundance Filter", "The minimum fraction that an OTU must represent in a sample (in the sample it is most abundant), in order to be kept. (i.e. an OTU must represent at least this fraction of the microbiota of any one sample in order to be kept)", placement='top', trigger='hover')), min = 0.0001, max = 0.1, value = 0.001),
                                                         hr(),
                                                         span(strong(textOutput('third_check')), style = "color:green"),
                                                         hr(),
@@ -73,8 +89,7 @@ shinyUI(fluidPage(
                              ),
                              conditionalPanel(condition = "output.third_check == 'Experiment-specific table has been normalized and filtered...'",
                                               wellPanel(h3("4) Remove fleeting OTUs"),
-                                                        sliderInput("min_fraction", label = h5("Minimum fraction of samples with a non-zero abundance"), min = 0, max = 1.0, value = 2/3),
-                                                        helpText("The minimum fraction of samples within a condition that must have a non-zero abundance of an OTU in order for it to be retained as reliably present in that condition."),
+                                                        sliderInput("min_fraction", label = c("Minimum fraction of samples with a non-zero abundance", helpPopup("Fleeting Filter", "The minimum fraction of samples within a condition that must have a non-zero abundance of an OTU in order for it to be retained as reliably present in that condition.", placement = 'top', trigger = 'hover')), min = 0, max = 1.0, value = 2/3),
                                                         h5("Resultant OTUs:"),
                                                         textOutput("num_otus_after_nonzero_filter")
                                               )),
@@ -82,8 +97,7 @@ shinyUI(fluidPage(
                                               wellPanel(h3("5) Select other settings"),
                                                         selectInput("comparison_test", label = h5("Select metric to compare abundances"), choices = list("Median" = "Median", "Mean" = "Mean"), selected = "Median"),
                                                         hr(),
-                                                        h5("Exclude post-transplant unique & shared OTUs"),
-                                                        checkboxInput("remove_OTUs_test_specific", "Exclude OTUs that are only in the post-transplant samples (i.e. neither in the donor nor the pre-transplant recipient samples), or shared in all conditions (donor, recipient and post-transplant recipient)", value = FALSE),
+                                                        checkboxInput("remove_OTUs_test_specific", label = c("Exclude post-FMT Unique and Shared OTUs", helpPopup("Exclude?", "Exclude OTUs that are only in the post-transplant samples (i.e. neither in the donor nor the pre-transplant recipient samples), or shared in all conditions (donor, recipient and post-transplant recipient)", placement = 'top', trigger = 'hover')), value = FALSE),
                                                         span(strong("Finished!"), style = "color:green"))
                              ))
              )
@@ -308,27 +322,27 @@ shinyUI(fluidPage(
                       wellPanel(style = 'overflow:hidden;',
                                 h4(HTML(paste("N", tags$sub("Donor"), sep = ""))),
                                 helpText("The number of Taxa that are reliably and exclusively in the donor."),
-                                h4(textOutput("num_otus_unique_donor_taxa")))),
+                                h4(textOutput("N_Donor_taxa")))),
                column(2,
                       wellPanel(style = 'overflow:hidden;',
                                 h4(HTML(paste("N", tags$sub("Recipient"), sep = ""))),
                                 helpText("The number of Taxa that are reliably and exclusively in the recipient."),
-                                h4(textOutput("num_otus_unique_recipient_taxa")))),
+                                h4(textOutput("N_Recipient_taxa")))),
                column(4,
                       wellPanel(style = 'overflow:hidden;',
                                 h4(HTML(paste("N", tags$sub("Post-FMT"), sep = ""))),
                                 helpText("The number of Taxa that are reliably in the post-transplant samples (minus number that are unique to the post-transplant samples and the number that are shared throughout, if this is selected for)."),
-                                h4(textOutput("num_otus_post_fmt_selected_taxa")))),
+                                h4(textOutput("N_P_Total_taxa")))),
                column(2,
                       wellPanel(style = 'overflow:hidden;',
                                 h4(HTML(paste("N", tags$sub("Post-FMT (Unique)"), sep = ""))),
                                 helpText("Number of Taxa that are reliably and exclusively in the post-transplant samples. This number should theoretically be low/zero, but can serve as a useful 'negative control'."),
-                                h4(textOutput("num_otus_unique_post_fmt_taxa")))),
+                                h4(textOutput("N_P_Unique_taxa")))),
                column(2,
                       wellPanel(style = 'overflow:hidden;',
                                 h4(HTML(paste("N", tags$sub("Shared"), sep = ""))),
                                 helpText("Number of Taxa that are reliably present in donor and recipient samples throughout."),
-                                h4(textOutput("num_otus_shared_throughout_taxa"))))
+                                h4(textOutput("N_P_Shared_taxa"))))
              ),
              hr(),
              h4("Donor Metrics"),
@@ -337,17 +351,17 @@ shinyUI(fluidPage(
                       wellPanel(style = 'overflow:hidden;',
                                 h4(HTML(paste("FMT", tags$sub("D"), sep = ""))),
                                 helpText("The number of OTUs in the post-transplant samples that came from the donor. $$FMT_{D} = | N_{Donor} \\cap N_{Post-FMT} |$$"),
-                                h4(textOutput("FMT_don_taxa")))),
+                                h4(textOutput("N_P_Donor")))),
                column(4,
                       wellPanel(style = 'overflow:hidden;',
                                 h4(HTML(paste("D", tags$sub("FracFMT"), sep = ""))),
                                 helpText("The proportion of the donor microbiota that engrafts into the recipient. $$D_{FracFMT} = \\frac{|N_{Donor} \\cap N_{Post-FMT} |}{|N_{Donor}|}$$"),
-                                h4(textOutput("D_Frac_FMT_taxa")))),
+                                h4(textOutput("D_Engraft_taxa")))),
                column(4,
                       wellPanel(style = 'overflow:hidden;',
                                 h4(HTML(paste("FMT", tags$sub("FracD"), sep = ""))),
                                 helpText("The proportion of OTUs in the post-transplant samples that is derived from the donor.$$FMT_{FracD} = \\frac{|N_{Donor} \\cap N_{Post-FMT} |}{|N_{Post-FMT}|}$$"),
-                                h4(textOutput("FMT_FracD_taxa"))))
+                                h4(textOutput("P_Donor_taxa"))))
              ),
              hr(),
              h4("Recipient Metrics"),
@@ -356,17 +370,17 @@ shinyUI(fluidPage(
                       wellPanel(style = 'overflow:hidden;',
                                 h4(HTML(paste("FMT", tags$sub("R"), sep = ""))),
                                 helpText("The number of OTUs in the post-transplant samples that came from the recipient. $$FMT_{R} = | N_{Recipient} \\cap N_{Post-FMT} |$$"),
-                                h4(textOutput("FMT_rec_taxa")))),
+                                h4(textOutput("N_P_Recipient_taxa")))),
                column(4,
                       wellPanel(style = 'overflow:hidden;',
                                 h4(HTML(paste("R", tags$sub("FracFMT"), sep = ""))),
                                 helpText("The proportion of the recipient microbiota that remains after the FMT. $$R_{FracFMT} = \\frac{|N_{Recipient} \\cap N_{Post-FMT} |}{|N_{Recipient}|}$$"),
-                                h4(textOutput("R_Frac_FMT_taxa")))),
+                                h4(textOutput("R_Persist_taxa")))),
                column(4,
                       wellPanel(style = 'overflow:hidden;',
                                 h4(HTML(paste("FMT", tags$sub("FracR"), sep = ""))),
                                 helpText("The proportion of OTUs in the post-transplant samples that is derived from the recipient. $$FMT_{FracR} = \\frac{|N_{Recipient} \\cap N_{Post-FMT} |}{|N_{Post-FMT}|}$$"),
-                                h4(textOutput("FMT_FracR_taxa"))))
+                                h4(textOutput("P_Recipient_taxa"))))
              ),
              hr(),
              h4("Visualization of Transplant"),
