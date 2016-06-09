@@ -189,8 +189,22 @@ shinyServer(function(input, output, session) {
   # Populate settings table, render it to UI, and allow for download of it
   settings <- reactive({
     validate(need(!is.null(input$input_otu_table) && !is.null(input$mapping_file), "Please load an OTU table and mapping file."))
-    Setting <- c("Input OTU Table", "# OTUs in input table",  "Mapping File", "Metadata Category to Select FMT Details", "Donor", "# Donor Samples", "Recipient", "# Recipient Samples", "Post-FMT Recipient", "# Post-FMT Recipient Samples", "Minimum Relative Abundance Filter", "# OTUs After Minimum Relative Abundance Filter", "Fleeting OTU Filter Threshold", "# OTUs After Fleeting OTU Filter (Final # OTUs)", "Comparison Metric", "Exclude OTUs Found Only in Post-FMT Samples or Shared")
-    Value <- c(input$input_otu_table$name, num_otus_raw(), input$mapping_file$name, input$comparison, donor(), N_donor_samples(), recipient(), N_recipient_samples(), post_fmt(), N_post_fmt_samples(), input$min_OTU_fraction, num_otus_preprocess(), input$min_fraction, N_otus_after_nonzero_filter(), input$comparison_test, input$remove_OTUs_test_specific)
+    Setting <- c(	"Input OTU Table", 						"# OTUs in input table",  
+				 	"Mapping File", 						"Metadata Category to Select FMT Details", 
+					"Donor", 								"# Donor Samples", 
+					"Recipient", 							"# Recipient Samples", 
+					"Post-FMT Recipient", 					"# Post-FMT Recipient Samples", 
+					"Minimum Relative Abundance Filter", 	"# OTUs After Minimum Relative Abundance Filter", 
+					"Fleeting OTU Filter Threshold", 		"# OTUs After Fleeting OTU Filter (Final # OTUs)", 
+					"Comparison Metric", 					"Exclude OTUs Found Only in Post-FMT Samples or Shared")
+    Value <- c(		input$input_otu_table$name, 			num_otus_raw(), 
+					input$mapping_file$name, 				input$comparison, 
+					donor(), 								N_donor_samples(), 
+					recipient(), 							N_recipient_samples(), 
+					post_fmt(), 							N_post_fmt_samples(), 
+					input$min_OTU_fraction, 				num_otus_preprocess(), 
+					input$min_fraction, 					N_otus_after_nonzero_filter(), 
+					input$comparison_test, 					input$remove_OTUs_test_specific)
     df <- data.frame(Setting, Value)
     return(df)
   })
@@ -322,20 +336,20 @@ shinyServer(function(input, output, session) {
   })
 
   # Return numbers of OTUs unique to each condition
-  N_otus_unique_donor <- reactive({
+  N_Donor <- reactive({
     if (is.null(donor_unique())) {return()}
     return(nrow(donor_unique()))})
-  output$num_otus_unique_donor <- renderText({N_otus_unique_donor()})
+  output$N_Donor <- renderText({N_Donor()})
 
-  N_otus_unique_recipient <- reactive({
+  N_Recipient <- reactive({
     if (is.null(recipient_unique())) {return()}
     return(nrow(recipient_unique()))})
-  output$num_otus_unique_recipient <- renderText({N_otus_unique_recipient()})
+  output$N_Recipient <- renderText({N_Recipient()})
 
-  N_otus_unique_post_fmt <- reactive({
+  N_P_Unique <- reactive({
     if (is.null(post_fmt_unique())) {return()}
     return(nrow(post_fmt_unique()))})
-  output$num_otus_unique_post_fmt <- renderText({N_otus_unique_post_fmt()})
+  output$N_P_Unique <- renderText({N_P_Unique()})
 
   N_otus_nonunique_post_fmt <- reactive({
     if (is.null(post_fmt_nonqunique())) {return()}
@@ -347,10 +361,10 @@ shinyServer(function(input, output, session) {
     return(nrow(shared_pre()))})
   output$num_otus_shared_pre <- renderText({N_otus_shared_pre()})
 
-  N_otus_shared_throughout <- reactive({
+  N_P_Shared <- reactive({
     if (is.null(shared_throughout())) {return()}
     return(nrow(shared_throughout()))})
-  output$num_otus_shared_throughout <- renderText({N_otus_shared_throughout()})
+  output$N_P_Shared <- renderText({N_P_Shared()})
 
   N_otus_post_fmt_nonzero <- reactive({
     if (is.null(post_fmt_nonzero())) {return()}
@@ -358,11 +372,11 @@ shinyServer(function(input, output, session) {
   })
   output$num_otus_post_fmt_nonzero <- renderText({N_otus_post_fmt_nonzero()})
 
-  N_otus_post_fmt_selected <- reactive({
+  N_P_Total <- reactive({
     if (is.null(post_fmt_selected())) {return()}
     return(nrow(post_fmt_selected()))
   })
-  output$num_otus_post_fmt_selected <- renderText({N_otus_post_fmt_selected()})
+  output$N_P_Total <- renderText({N_P_Total()})
 
   output$remove_OTUs <- renderText({
     if (input$remove_OTUs_test_specific){
@@ -448,71 +462,83 @@ shinyServer(function(input, output, session) {
   # Compute Relevant FMT metrics by OTU                                                    #
   ##########################################################################################
 
-  # FMT_don_table, the table of OTUs in the post-transplant samples that came from the donor.
-  FMT_don_table <- reactive({
+  # P_Donor_table, the table of OTUs in the post-transplant samples that came from the donor.
+  P_Donor_table <- reactive({
     validate(need(!is.null(input$input_otu_table) && !is.null(input$mapping_file), "Please load an OTU table and mapping file."))
       output <- semi_join(post_fmt_selected(), donor_unique(), by = "OTU")
     return(output)
   })
-  output$FMT_don_table <- renderDataTable({FMT_don_table()})
+  output$P_Donor_table <- renderDataTable({P_Donor_table()})
 
-  # FMT_don, the number of OTUs in the post-transplant samples that came from the donor
-  FMT_don <- reactive({
-    if (is.null(FMT_don_table())) {return()}
-    return(nrow(FMT_don_table()))
+  # N_P_Donor, the number of OTUs in the post-transplant samples that came from the donor
+  N_P_Donor <- reactive({
+    if (is.null(P_Donor_table())) {return()}
+    return(nrow(P_Donor_table()))
   })
-  output$FMT_don <- renderText({FMT_don()})
+  output$N_P_Donor <- renderText({N_P_Donor()})
 
-  # D_Frac_FMT the proportion of donor OTUs that made it into the post-transplant samples
-  D_Frac_FMT <- reactive({
+  # D_Engraft the proportion of donor OTUs that made it into the post-transplant samples
+  D_Engraft <- reactive({
     if (is.null(donor_unique())) {return()}
-    num_donor <- nrow(donor_unique())
-    fraction <- FMT_don()/num_donor
+	fraction <- N_P_Donor()/N_Donor()
     return(fraction)
   })
-  output$D_Frac_FMT <- renderText({D_Frac_FMT()})
+  output$D_Engraft <- renderText({D_Engraft()})
 
-  # FMT_FracD, the proportion of OTUs in post-transplant samples that came from the donor
-  FMT_FracD <- reactive({
+  # P_Donor, the proportion of OTUs in post-transplant samples that came from the donor
+  P_Donor <- reactive({
     if (is.null(post_fmt_selected())) {return()}
-    num_post_fmt <- nrow(post_fmt_selected())
-    fraction <- FMT_don()/num_post_fmt
+    fraction <- N_P_Donor()/N_P_Total()
     return(fraction)
   })
-  output$FMT_FracD <- renderText({FMT_FracD()})
+  output$P_Donor <- renderText({P_Donor()})
 
-  # FMT_rec_table, the table of OTUs in the post-transplant samples that came from the recipient
-  FMT_rec_table <- reactive({
+  # P_Recipient_table, the table of OTUs in the post-transplant samples that came from the recipient
+  P_Recipient_table <- reactive({
     validate(need(!is.null(input$input_otu_table) && !is.null(input$mapping_file), "Please load an OTU table and mapping file."))
     output <- semi_join(post_fmt_selected(), recipient_unique(), by = "OTU")
     return(output)
   })
-  output$FMT_rec_table <- renderDataTable({FMT_rec_table()})
+  output$P_Recipient_table <- renderDataTable({P_Recipient_table()})
 
-  # FMT_rec, the number of OTUs in the post-transplant samples that came from the recipient
-  FMT_rec <- reactive({
-    if (is.null(FMT_rec_table())) {return()}
-    return(nrow(FMT_rec_table()))
+  # P_Recipient, the number of OTUs in the post-transplant samples that came from the recipient
+  N_P_Recipient <- reactive({
+    if (is.null(P_Recipient_table())) {return()}
+    return(nrow(P_Recipient_table()))
   })
-  output$FMT_rec <- renderText({FMT_rec()})
+  output$N_P_Recipient <- renderText({N_P_Recipient()})
 
-  # R_Frac_FMT the proportion of recipient OTUs that remained in the post-transplant samples
-  R_Frac_FMT <- reactive({
+  # R_Persist the proportion of recipient OTUs that remained in the post-transplant samples
+  R_Persist <- reactive({
     if (is.null(recipient_unique())) {return()}
-    num_recipient <- nrow(recipient_unique())
-    fraction <- FMT_rec()/num_recipient
+    fraction <- N_P_Recipient()/N_Recipient()
     return(fraction)
   })
-  output$R_Frac_FMT <- renderText({R_Frac_FMT()})
+  output$R_Persist <- renderText({R_Persist()})
 
-  # FMT_FracR, the proportion of OTUs in post-transplant samples that came from the recipient
-  FMT_FracR <- reactive({
+  # P_Recipient, the proportion of OTUs in post-transplant samples that came from the recipient
+  P_Recipient <- reactive({
     if (is.null(post_fmt_selected())) {return()}
-    num_post_fmt <- nrow(post_fmt_selected())
-    fraction <- FMT_rec()/num_post_fmt
+    fraction <- N_P_Recipient()/N_P_Total()
     return(fraction)
   })
-  output$FMT_FracR <- renderText({FMT_FracR()})
+  output$P_Recipient <- renderText({P_Recipient()})
+  
+  # P_Shared , proporiton of OTUs in post-transplant samples that are shared
+  P_Shared <- reactive({
+	  if (is.null(post_fmt_selected())) {return()}
+	  fraction <- N_P_Shared()/N_P_Total()
+	  return(fraction)  	
+  })
+  output$P_Shared <- renderText({P_Shared()})
+  
+  # P_Unique, proporiton of OTUs in post-transplant samples that are unique
+  P_Unique <- reactive({
+	  if(is.null(post_fmt_selected())) {return()}
+	  fraction <- N_P_Unique()/N_P_Total()
+	  return(fraction)
+  })
+  output$P_Unique <- renderText({P_Unique()})
 
 
   ##########################################################################################
@@ -522,24 +548,37 @@ shinyServer(function(input, output, session) {
   # Populate table for Metrics
   metric_table <- reactive({
     validate(need(!is.null(input$input_otu_table) && !is.null(input$mapping_file), "Please load an OTU table and mapping file."))
-    Item <- c("Input OTU Table", "# OTUs in original table",
-                 "Mapping File", "Metadata Category to Select FMT Details",
-                 "Donor", "# Donor Samples", "Recipient", "# Recipient Samples", "Post-FMT Recipient", "# Post-FMT Recipient Samples", "Minimum Relative Abundance Filter", "# OTUs After Minimum Relative Abundance Filter",
-                 "Fleeting OTU Filter Threshold", "# OTUs After Fleeting OTU Filter (Final # OTUs)", "Comparison Metric",
-                 "Exclude OTUs Found Only in Post-FMT Samples or Shared",
-              "N_don: # specific & unique to donor", "N_rec: # specific & unique to recipient", "N_post_fmt: # specific to post-FMT",
-              "N_post_fmt_unique: # Unique to post-fmt (should be low/zero)", "N_shared: # shared across donor and recipient throughout",
-              "FMT_don: # from donor in post-FMT", "D_Frac_FMT: proportion of donor in post-FMT", "FMT_FracD: proportion of post-FMT from donor",
-              "FMT_rec: # from recipient in post-FMT", "R_Frac_FMT: proportion of recipient in post-FMT", "FMT_FracR: propotion of post-FMT from recipient")
-    Value <- c(input$input_otu_table$name, num_otus_raw(),
-               input$mapping_file$name, input$comparison,
-               donor(), N_donor_samples(), recipient(), N_recipient_samples(), post_fmt(), N_post_fmt_samples(), input$min_OTU_fraction, num_otus_preprocess(),
-               input$min_fraction, N_otus_after_nonzero_filter(), input$comparison_test,
-               input$remove_OTUs_test_specific,
-               N_otus_unique_donor(), N_otus_unique_recipient(), N_otus_post_fmt_selected(),
-               N_otus_unique_post_fmt(), N_otus_shared_throughout(),
-               FMT_don(), D_Frac_FMT(), FMT_FracD(),
-               FMT_rec(), R_Frac_FMT(), FMT_FracR())
+    Item <- c(   "Input OTU Table", 		"# OTUs in original table",
+                 "Mapping File", 			"Metadata Category",
+                 "DonorID", 				"N_Donor_Samples",
+				 "RecipientID",				"N_Recipient_Samples", 
+				 "Post_FMT_ID", 			"N_Post_FMT_Samples", 
+				 "Rel_Abundance_Filter", 	"N_OTUs_Rel_Abundance_Filtered",
+                 "Fleeting_OTUs_Filter", 	"N_OTUs_Fleeting_Filtered", 
+				 "Comparison_Metric",       "Exclude_Unique_And_Shared",
+                 "N_Donor", 				"N_Recipient", 
+				 "N_P_Total",             	"N_P_Unique", 
+				 "N_P_Shared",              "N_P_Donor", 
+				 "D_Engraft", 				"P_Donor",
+                 "N_P_Recipient", 			"R_Persist", 
+				 "P_Recipient", 			"P_Shared", 
+				 "P_Unique",				"Taxonomy_Added")
+				 
+    Value <- c(input$input_otu_table$name, 	num_otus_raw(),
+               input$mapping_file$name, 	input$comparison,
+               donor(), 					N_donor_samples(), 
+			   recipient(),		 			N_recipient_samples(), 
+			   post_fmt(), 					N_post_fmt_samples(), 
+			   input$min_OTU_fraction, 		num_otus_preprocess(),
+               input$min_fraction, 			N_otus_after_nonzero_filter(), 
+			   input$comparison_test,      	input$remove_OTUs_test_specific,
+               N_Donor(), 					N_Recipient(), 
+			   N_P_Total(),  				N_P_Unique(), 
+			   N_P_Shared(),  				N_P_Donor(), 
+			   D_Engraft(), 				P_Donor(),
+               N_P_Recipient(), 			R_Persist(), 
+			   P_Recipient(),				P_Shared(),
+			   P_Unique(),					"No")
     df <- data.frame(Item, Value)
     return(df)
   })
@@ -563,10 +602,10 @@ shinyServer(function(input, output, session) {
       N_shared_vis <- 0
     }
     else {
-      N_unique_vis <- N_otus_unique_post_fmt()
-      N_shared_vis <- N_otus_shared_throughout()
+      N_unique_vis <- N_P_Unique()
+      N_shared_vis <- N_P_Shared()
     }
-    p <- visualize_metrics(N_otus_unique_donor(), N_otus_unique_recipient(), N_otus_post_fmt_selected(), FMT_don(), FMT_rec(), N_unique_vis, N_shared_vis, post_fmt())
+    p <- visualize_metrics(N_Donor(), N_Recipient(), N_P_Total(), N_P_Donor(), N_P_Recipient(), N_unique_vis, N_shared_vis, post_fmt())
     return(p)
 
   })
@@ -803,20 +842,20 @@ shinyServer(function(input, output, session) {
   })
 
   # Return numbers of OTUs unique to each condition
-  N_otus_unique_donor_taxa <- reactive({
+  N_Donor_taxa <- reactive({
     if (is.null(donor_unique_taxa())) {return()}
     return(nrow(donor_unique_taxa()))})
-  output$num_otus_unique_donor_taxa <- renderText({N_otus_unique_donor_taxa()})
+  output$N_Donor_taxa <- renderText({N_Donor_taxa()})
 
-  N_otus_unique_recipient_taxa <- reactive({
+  N_Recipient_taxa <- reactive({
     if (is.null(recipient_unique_taxa())) {return()}
     return(nrow(recipient_unique_taxa()))})
-  output$num_otus_unique_recipient_taxa <- renderText({N_otus_unique_recipient_taxa()})
+  output$N_Recipient_taxa <- renderText({N_Recipient_taxa()})
 
-  N_otus_unique_post_fmt_taxa <- reactive({
+  N_P_Unique_taxa <- reactive({
     if (is.null(post_fmt_unique_taxa())) {return()}
     return(nrow(post_fmt_unique_taxa()))})
-  output$num_otus_unique_post_fmt_taxa <- renderText({N_otus_unique_post_fmt_taxa()})
+  output$N_P_Unique_taxa <- renderText({N_P_Unique_taxa()})
 
   N_otus_nonunique_post_fmt_taxa <- reactive({
     if (is.null(post_fmt_nonqunique_taxa())) {return()}
@@ -828,10 +867,10 @@ shinyServer(function(input, output, session) {
     return(nrow(shared_pre_taxa()))})
   output$num_otus_shared_pre_taxa <- renderText({N_otus_shared_pre_taxa()})
 
-  N_otus_shared_throughout_taxa <- reactive({
+  N_P_Shared_taxa <- reactive({
     if (is.null(shared_throughout_taxa())) {return()}
     return(nrow(shared_throughout_taxa()))})
-  output$num_otus_shared_throughout_taxa <- renderText({N_otus_shared_throughout_taxa()})
+  output$N_P_Shared_taxa <- renderText({N_P_Shared_taxa()})
 
   N_otus_post_fmt_nonzero_taxa <- reactive({
     if (is.null(post_fmt_nonzero_taxa())) {return()}
@@ -839,11 +878,11 @@ shinyServer(function(input, output, session) {
   })
   output$num_otus_post_fmt_nonzero_taxa <- renderText({N_otus_post_fmt_nonzero_taxa()})
 
-  N_otus_post_fmt_selected_taxa <- reactive({
+  N_P_Total_taxa <- reactive({
     if (is.null(post_fmt_selected_taxa())) {return()}
     return(nrow(post_fmt_selected_taxa()))
   })
-  output$num_otus_post_fmt_selected_taxa <- renderText({N_otus_post_fmt_selected_taxa()})
+  output$N_P_Total_taxa <- renderText({N_P_Total_taxa()})
 
   output$remove_OTUs_taxa <- renderText({
     if (input$remove_OTUs_test_specific){
@@ -929,71 +968,86 @@ shinyServer(function(input, output, session) {
   # # Define Transplantation metrics + Taxonomy
 
 
-  # FMT_don_table, the table of OTUs in the post-transplant samples that came from the donor.
-  FMT_don_table_taxa <- reactive({
+  # P_Donor_table_taxa, the table of taxa in the post-transplant samples that came from the donor.
+  P_Donor_table_taxa <- reactive({
     validate(need(!is.null(input$input_otu_table) && !is.null(input$mapping_file), "Please load an OTU table and mapping file."))
     output <- semi_join(post_fmt_selected_taxa(), donor_unique_taxa(), by = "Taxon")
     return(output)
   })
-  output$FMT_don_table_taxa <- renderDataTable({FMT_don_table_taxa()})
+  output$P_Donor_table_taxa <- renderDataTable({P_Donor_table_taxa()})
 
-  # FMT_don, the number of OTUs in the post-transplant samples that came from the donor
-  FMT_don_taxa <- reactive({
-    if (is.null(FMT_don_table_taxa())) {return()}
-    return(nrow(FMT_don_table_taxa()))
+  # P_Donor_taxa, the number of taxa in the post-transplant samples that came from the donor
+  N_P_Donor_taxa <- reactive({
+    if (is.null(P_Donor_table_taxa())) {return()}
+    return(nrow(P_Donor_table_taxa()))
   })
-  output$FMT_don_taxa <- renderText({FMT_don_taxa()})
+  output$P_Donor_taxa <- renderText({P_Donor_taxa()})
 
-  # D_Frac_FMT the proportion of donor OTUs that made it into the post-transplant samples
-  D_Frac_FMT_taxa <- reactive({
+  # D_Engraft_taxa the proportion of donor taxa that made it into the post-transplant samples
+  D_Engraft_taxa <- reactive({
     if (is.null(donor_unique_taxa())) {return()}
-    num_donor <- nrow(donor_unique_taxa())
-    fraction <- FMT_don_taxa()/num_donor
+    fraction <- P_Donor_taxa()/N_Donor_taxa()
     return(fraction)
   })
-  output$D_Frac_FMT_taxa <- renderText({D_Frac_FMT_taxa()})
+  output$D_Engraft_taxa <- renderText({D_Engraft_taxa()})
 
-  # FMT_FracD, the proportion of OTUs in post-transplant samples that came from the donor
-  FMT_FracD_taxa <- reactive({
+  # P_Donor_taxa, the proportion of taxa in post-transplant samples that came from the donor
+  P_Donor_taxa <- reactive({
     if (is.null(post_fmt_selected_taxa())) {return()}
-    num_post_fmt <- nrow(post_fmt_selected_taxa())
-    fraction <- FMT_don_taxa()/num_post_fmt
+    fraction <- P_Donor_taxa()/N_P_Total_taxa()
     return(fraction)
   })
-  output$FMT_FracD_taxa <- renderText({FMT_FracD_taxa()})
+  output$P_Donor_taxa <- renderText({P_Donor_taxa()})
 
-  # FMT_rec_table, the table of OTUs in the post-transplant samples that came from the recipient
-  FMT_rec_table_taxa <- reactive({
+  # P_Recipient_table_taxa, the table of taxa in the post-transplant samples that came from the recipient
+  P_Recipient_table_taxa <- reactive({
     validate(need(!is.null(input$input_otu_table) && !is.null(input$mapping_file), "Please load an OTU table and mapping file."))
     output <- semi_join(post_fmt_selected_taxa(), recipient_unique_taxa(), by = "Taxon")
     return(output)
   })
-  output$FMT_rec_table_taxa <- renderDataTable({FMT_rec_table_taxa()})
+  output$P_Recipient_table_taxa <- renderDataTable({P_Recipient_table_taxa()})
 
-  # FMT_rec, the number of OTUs in the post-transplant samples that came from the recipient
-  FMT_rec_taxa <- reactive({
-    if (is.null(FMT_rec_table_taxa())) {return()}
-    return(nrow(FMT_rec_table_taxa()))
+  # N_P_Recipient_taxa, the number of taxa in the post-transplant samples that came from the recipient
+  N_P_Recipient_taxa <- reactive({
+    if (is.null(P_Recipient_table_taxa())) {return()}
+    return(nrow(P_Recipient_table_taxa()))
   })
-  output$FMT_rec_taxa <- renderText({FMT_rec_taxa()})
+  output$P_Recipient_taxa <- renderText({P_Recipient_taxa()})
 
-  # R_Frac_FMT the proportion of recipient OTUs that remained in the post-transplant samples
-  R_Frac_FMT_taxa <- reactive({
+  # R_Persist_taxa the proportion of recipient taxa that remained in the post-transplant samples
+  R_Persist_taxa <- reactive({
     if (is.null(recipient_unique_taxa())) {return()}
-    num_recipient <- nrow(recipient_unique_taxa())
-    fraction <- FMT_rec_taxa()/num_recipient
+    fraction <- P_Recipient_taxa()/N_Recipient_taxa()
     return(fraction)
   })
-  output$R_Frac_FMT_taxa <- renderText({R_Frac_FMT_taxa()})
+  output$R_Persist_taxa <- renderText({R_Persist_taxa()})
 
-  # FMT_FracR, the proportion of OTUs in post-transplant samples that came from the recipient
-  FMT_FracR_taxa <- reactive({
+  # P_Recipient_taxa, the proportion of taxa in post-transplant samples that came from the recipient
+  P_Recipient_taxa <- reactive({
     if (is.null(post_fmt_selected_taxa())) {return()}
-    num_post_fmt <- nrow(post_fmt_selected_taxa())
-    fraction <- FMT_rec_taxa()/num_post_fmt
+    fraction <- P_Recipient_taxa()/N_P_Total_taxa()
     return(fraction)
   })
-  output$FMT_FracR_taxa <- renderText({FMT_FracR_taxa()})
+  output$P_Recipient_taxa <- renderText({P_Recipient_taxa()})
+  
+  # P_Shared_taxa , proporiton of taxa in post-transplant samples that are shared
+  P_Shared_taxa <- reactive({
+	  if (is.null(post_fmt_selected_taxa())) {return()}
+	  fraction <- N_P_Shared_taxa()/N_P_Total_taxa()
+	  return(fraction)  	
+  })
+  output$P_Shared_taxa <- renderText({P_Shared_taxa()})
+  
+  # P_Unique_taxa, proporiton of taxa in post-transplant samples that are unique
+  P_Unique_taxa <- reactive({
+	  if(is.null(post_fmt_selected_taxa())) {return()}
+	  fraction <- N_P_Unique_taxa()/N_P_Total_taxa()
+	  return(fraction)
+  })
+  output$P_Unique_taxa <- renderText({P_Unique_taxa()})
+  
+  
+  
 
   ##########################################################################################
   #                                                                                        #
@@ -1007,10 +1061,10 @@ shinyServer(function(input, output, session) {
       N_shared_vis_taxa <- 0
     }
     else {
-      N_unique_vis_taxa <- N_otus_unique_post_fmt_taxa()
-      N_shared_vis_taxa <- N_otus_shared_throughout_taxa()
+      N_unique_vis_taxa <- N_P_Unique_taxa()
+      N_shared_vis_taxa <- N_P_Shared_taxa()
     }
-    p <- visualize_metrics(N_otus_unique_donor_taxa(), N_otus_unique_recipient_taxa(), N_otus_post_fmt_selected_taxa(), FMT_don_taxa(), FMT_rec_taxa(), N_unique_vis_taxa, N_shared_vis_taxa, paste(post_fmt(), "(Taxa)", sep = " "))
+    p <- visualize_metrics(N_Donor_taxa(), N_Recipient_taxa(), N_P_Total_taxa(), P_Donor_taxa(), P_Recipient_taxa(), N_unique_vis_taxa, N_shared_vis_taxa, paste(post_fmt(), "(Taxa)", sep = " "))
     return(p)
 
   })
@@ -1030,27 +1084,44 @@ shinyServer(function(input, output, session) {
   # Populate table for Metrics
   metric_table_taxa <- reactive({
     validate(need(!is.null(input$input_otu_table) && !is.null(input$mapping_file), "Please load an OTU table and mapping file."))
-    Item <- c("Input OTU Table", "# OTUs in raw table",
-              "Mapping File", "Metadata Category to Select FMT Details",
-              "Donor", "# Donor Samples", "Recipient", "# Recipient Samples", "Post-FMT Recipient", "# Post-FMT Recipient Samples", "Minimum Relative Abundance Filter", "# OTUs After Minimum Relative Abundance Filter",
-              "Fleeting OTU Filter Threshold", "# OTUs After Fleeting OTU Filter (Final # OTUs)", "Comparison Metric",
-              "Exclude OTUs Found Only in Post-FMT Samples or Shared",
-              "N_don: # specific & unique to donor", "N_rec: # specific & unique to recipient", "N_post_fmt: # specific to post-FMT",
-              "N_post_fmt_unique: # Unique to post-fmt (should be low/zero)", "N_shared: # shared across donor and recipient throughout",
-              "FMT_don: # from donor in post-FMT", "D_Frac_FMT: proportion of donor in post-FMT", "FMT_FracD: proportion of post-FMT from donor",
-              "FMT_rec: # from recipient in post-FMT", "R_Frac_FMT: proportion of recipient in post-FMT", "FMT_FracR: propotion of post-FMT from recipient")
-    Value <- c(input$input_otu_table$name, num_otus_raw(),
-               input$mapping_file$name, input$comparison,
-               donor(), N_donor_samples(), recipient(), N_recipient_samples(), post_fmt(), N_post_fmt_samples(), input$min_OTU_fraction, num_otus_preprocess(),
-               input$min_fraction, N_otus_after_nonzero_filter(), input$comparison_test,
-               input$remove_OTUs_test_specific,
-               N_otus_unique_donor_taxa(), N_otus_unique_recipient_taxa(), N_otus_post_fmt_selected_taxa(),
-               N_otus_unique_post_fmt_taxa(), N_otus_shared_throughout_taxa(),
-               FMT_don_taxa(), D_Frac_FMT_taxa(), FMT_FracD_taxa(),
-               FMT_rec_taxa(), R_Frac_FMT_taxa(), FMT_FracR_taxa())
+    Item <- c(   "Input OTU Table", 		"# OTUs in original table",
+                 "Mapping File", 			"Metadata Category",
+                 "DonorID", 				"N_Donor_Samples",
+				 "RecipientID",				"N_Recipient_Samples", 
+				 "Post_FMT_ID", 			"N_Post_FMT_Samples", 
+				 "Rel_Abundance_Filter", 	"N_OTUs_Rel_Abundance_Filtered",
+                 "Fleeting_OTUs_Filter", 	"N_OTUs_Fleeting_Filtered", 
+				 "Comparison_Metric",       "Exclude_Unique_And_Shared",
+                 "N_Donor", 				"N_Recipient", 
+				 "N_P_Total",             	"N_P_Unique", 
+				 "N_P_Shared",              "N_P_Donor", 
+				 "D_Engraft", 				"P_Donor",
+                 "N_P_Recipient", 			"R_Persist", 
+				 "P_Recipient", 			"P_Shared", 
+				 "P_Unique",				"Taxonomy_Added")
+				 
+    Value <- c(input$input_otu_table$name, 	num_otus_raw(),
+               input$mapping_file$name, 	input$comparison,
+               donor(), 					N_donor_samples(), 
+			   recipient(),		 			N_recipient_samples(), 
+			   post_fmt(), 					N_post_fmt_samples(), 
+			   input$min_OTU_fraction, 		num_otus_preprocess(),
+               input$min_fraction, 			N_otus_after_nonzero_filter(), 
+			   input$comparison_test,      	input$remove_OTUs_test_specific,
+               N_Donor_taxaa(), 			N_Recipient_taxa(), 
+			   N_P_Total_taxa(),  			N_P_Unique_taxa(), 
+			   N_P_Shared_taxa(),  			N_P_Donor_taxa(), 
+			   D_Engraft_taxa(), 			P_Donor_taxa(),
+               N_P_Recipient_taxa(), 		R_Persist_taxa(), 
+			   P_Recipient_taxa(),			P_Shared_taxa(),
+			   P_Unique_taxa(),				"Yes")
     df <- data.frame(Item, Value)
     return(df)
   })
+  
+  
+  
+  
 
   output$metrics_taxa <- renderTable({metric_table_taxa()})
   output$xmetrics_taxa <- downloadHandler(filename = function() {
