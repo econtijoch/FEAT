@@ -795,7 +795,7 @@ shinyServer(function(input, output, session) {
 
   })
   output$plot1 <- renderPlot({plot_item()})
-  output$plot_download = downloadHandler(filename = 'plot.png', content = function(file) {
+  output$plot_download = downloadHandler(filename = 'ordination_plot.png', content = function(file) {
       device <- function(..., width, height) {
         grDevices::png(..., width = 2*width, height = height,
                        res = 500, units = "in")
@@ -805,7 +805,7 @@ shinyServer(function(input, output, session) {
 
   output$pc_table <- renderDataTable({(pc_values_plus_metadata())}, options = list(lengthMenu = c(50,100,200), pageLength = 50, orderClasses = TRUE))
   output$pc_table_download <- downloadHandler(filename = function() {
-    'test.csv'
+    'pc_table.csv'
   }, content = function(con) {
     write.csv(pc_values_plus_metadata(), con, row.names = FALSE)
   })
@@ -1068,7 +1068,7 @@ shinyServer(function(input, output, session) {
     return(fraction)
   })
   output$D_Engraft_taxa <- renderUI({
-	  HTML(paste("<strong>D", tags$sub("Engraft"), ":</strong>", " ",D_Engraft_taxa(), sep = ""))
+	  HTML(paste("<strong>D", tags$sub("Engraft"), ":</strong>", " ", round(D_Engraft_taxa(), 3), sep = ""))
   })
 
   # P_Donor_taxa, the proportion of taxa in post-transplant samples that came from the donor
@@ -1078,7 +1078,7 @@ shinyServer(function(input, output, session) {
     return(fraction)
   })
   output$P_Donor_taxa <- renderUI({
-	  HTML(paste("<strong>P", tags$sub("Donor"), ":</strong>", " ",P_Donor_taxa(), sep = ""))
+	  HTML(paste("<strong>P", tags$sub("Donor"), ":</strong>", " ", round(P_Donor_taxa(), 3), sep = ""))
   })
 
   # P_Recipient_table_taxa, the table of taxa in the post-transplant samples that came from the recipient
@@ -1105,7 +1105,7 @@ shinyServer(function(input, output, session) {
     return(fraction)
   })
   output$R_Persist_taxa <- renderUI({
-	  HTML(paste("<strong>R", tags$sub("Persist"), ":</strong>", " ",R_Persist_taxa(), sep = ""))
+	  HTML(paste("<strong>R", tags$sub("Persist"), ":</strong>", " ", round(R_Persist_taxa(), 3), sep = ""))
   })
 
   # P_Recipient_taxa, the proportion of taxa in post-transplant samples that came from the recipient
@@ -1115,7 +1115,7 @@ shinyServer(function(input, output, session) {
     return(fraction)
   })
   output$P_Recipient_taxa <- renderUI({
-	  HTML(paste("<strong>P", tags$sub("Recipient"), ":</strong>", " ",P_Recipient_taxa(), sep = ""))
+	  HTML(paste("<strong>P", tags$sub("Recipient"), ":</strong>", " ", round(P_Recipient_taxa(), 3), sep = ""))
   })
   
   # P_Shared_taxa , proporiton of taxa in post-transplant samples that are shared
@@ -1125,7 +1125,7 @@ shinyServer(function(input, output, session) {
 	  return(fraction)  	
   })
   output$P_Shared_taxa <- renderUI({
-	  HTML(paste("<strong>P", tags$sub("Shared"), ":</strong>", " ",P_Shared_taxa(), sep = ""))
+	  HTML(paste("<strong>P", tags$sub("Shared"), ":</strong>", " ", round(P_Shared_taxa(), 3), sep = ""))
   })
   
   # P_Unique_taxa, proporiton of taxa in post-transplant samples that are unique
@@ -1135,7 +1135,7 @@ shinyServer(function(input, output, session) {
 	  return(fraction)
   })
   output$P_Unique_taxa <- renderUI({
-	  HTML(paste("<strong>P", tags$sub("Unique"), ":</strong>", " ",P_Unique_taxa(), sep = ""))
+	  HTML(paste("<strong>P", tags$sub("Unique"), ":</strong>", " ", round(P_Unique_taxa(), 3), sep = ""))
   })
   
   
