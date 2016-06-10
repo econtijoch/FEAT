@@ -10,4 +10,10 @@
 
 <p>To launch the Shiny app, simply load the package and run the launchFEAT() command.</p>
 
+<p>Alternatively, you can run it directly from GitHub:</p>
+
+
+	require(shiny)
+	runGitHub('econtijoch/FEAT/', subdir = 'inst/shiny-FEAT/')
+
 
