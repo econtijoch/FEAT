@@ -1200,7 +1200,7 @@ shinyServer(function(input, output, session) {
 			   input$min_OTU_fraction, 		num_otus_preprocess(),
                input$min_fraction, 			N_otus_after_nonzero_filter(), 
 			   input$comparison_test,      	input$remove_OTUs_test_specific,
-               N_Donor_taxaa(), 			N_Recipient_taxa(), 
+               N_Donor_taxa(), 				N_Recipient_taxa(), 
 			   N_P_Total_taxa(),  			N_P_Unique_taxa(), 
 			   N_P_Shared_taxa(),  			N_P_Donor_taxa(), 
 			   D_Engraft_taxa(), 			P_Donor_taxa(),
