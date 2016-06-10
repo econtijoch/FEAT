@@ -8,6 +8,7 @@ require(ggplot2)
 require(vegan)
 require(lazyeval)
 require(FEAT)
+require(shinyjs)
 
 # source('helper_funcitons.R')
 ggsave <- ggplot2::ggsave; body(ggsave) <- body(ggplot2::ggsave)[-2]
@@ -115,7 +116,7 @@ shinyServer(function(input, output, session) {
   })
 
   # Normalize and filter the experiment-specific table
-  biom_normalized_filtered <- reactive({
+  biom_normalized_filtered <- eventReactive(input$update_min_fraction_filter, {
     table <- normalize_and_filter(biom_experiment_specific(), input$min_OTU_fraction)
   })
   #Report success
@@ -304,14 +305,23 @@ shinyServer(function(input, output, session) {
     out <- anti_join(donor_nonzero(), recipient_nonzero(), by = "OTU")
     return(out)
   })
+  output$donor_unique <- renderDataTable({donor_unique()},options = list(lengthMenu = c(50,100,200), pageLength = 50, orderClasses = TRUE))
+  observeEvent(input$showhide_donor, {toggle("donor_unique")})
+  
   recipient_unique <- reactive({
     out <- anti_join(recipient_nonzero(), donor_nonzero(), by = "OTU")
     return(out)
   })
+  output$recipient_unique <- renderDataTable({recipient_unique()},options = list(lengthMenu = c(50,100,200), pageLength = 50, orderClasses = TRUE))
+  observeEvent(input$showhide_recipient, {toggle("recipient_unique")})
+  
   post_fmt_unique <- reactive({
     out <- anti_join(anti_join(post_fmt_nonzero(), donor_nonzero(), by = "OTU"), recipient_nonzero(), by = "OTU")
     return(out)
   })
+  output$post_fmt_unique <- renderDataTable({post_fmt_unique()},options = list(lengthMenu = c(50,100,200), pageLength = 50, orderClasses = TRUE))
+  observeEvent(input$showhide_post_fmt, {toggle("post_fmt_unique")})
+  
   post_fmt_nonunique <- reactive({
     a <- semi_join(post_fmt_nonzero(), donor_unique(), by = "OTU")
     b <- semi_join(post_fmt_nonzero(), recipient_unique(), by = "OTU")
@@ -324,8 +334,11 @@ shinyServer(function(input, output, session) {
   })
   shared_throughout <- reactive({
     output <- semi_join(shared_pre(), post_fmt_nonzero(), by = "OTU")
+	output$Specificity <- "Shared"
     return(output)
   })
+  output$shared_throughout <- renderDataTable({shared_throughout()},options = list(lengthMenu = c(50,100,200), pageLength = 50, orderClasses = TRUE))
+  observeEvent(input$showhide_shared, {toggle("shared_throughout")})
 
   post_fmt_selected <- reactive({
     if(input$remove_OTUs_test_specific) {
@@ -734,13 +747,25 @@ shinyServer(function(input, output, session) {
     }
     return(output)
   })
+  
+  spree_plot <- eventReactive(plot_inputs() ,{
+	  x_spree <- paste("PC", as.character(seq(1, length(pc_table()$eig))), sep = " ")
+	  y_spree <- (pc_table()$eig/sum(pc_table()$eig))*100
+	  
+	  spree_data <- data.frame(x_spree,y_spree)
+	  
+	  p <- ggplot(data = spree_data[1:5,], aes(x = x_spree, y = y_spree)) + geom_bar(stat = 'identity') + labs(x = "", y = "Percent Explained") + theme_classic() + coord_cartesian(ylim = c(0,100)) + theme(axis.text=element_text(size=14, face="bold"), axis.title=element_text(size=16,face="bold"), axis.line.x=element_line(size=1, color = 'black'), axis.line.y=element_line(size=1, color = 'black'),  axis.ticks=element_line(size=1.5)) + scale_y_continuous(expand = c(0, 0))
+	  return(p)
+  })
+  output$spree_plot <- renderPlot({spree_plot()})
+  
   plot_item <- eventReactive(plot_inputs(),{
 
     xval <- input$plot_x
     yval <- input$plot_y
     p <- ggplot(data = pc_values_plus_metadata(), aes_string(x=xval, y=yval)) + geom_point(size = input$point_size) +
       theme_classic() +
-      theme(axis.text=element_text(size=14, face="bold"), axis.title=element_text(size=16,face="bold"), axis.line=element_line(size=1), axis.text.x=element_text(angle = 45,hjust = 1), axis.ticks=element_line(size=1.5))
+      theme(axis.text=element_text(size=14, face="bold"), axis.title=element_text(size=16,face="bold"), axis.line.x=element_line(size=1, color = 'black'), axis.line.y=element_line(size=1, color = 'black'), axis.text.x=element_text(angle = 45,hjust = 1), axis.ticks=element_line(size=1.5))
 
 
     if (!is.null(input$plot_color_by)) {
@@ -838,14 +863,23 @@ shinyServer(function(input, output, session) {
     out <- anti_join(donor_nonzero_taxa(), recipient_nonzero_taxa(), by = "Taxon")
     return(out)
   })
+  output$donor_unique_taxa <- renderDataTable({donor_unique_taxa()},options = list(lengthMenu = c(50,100,200), pageLength = 50, orderClasses = TRUE))
+  observeEvent(input$showhide_donor_taxa, {toggle("donor_unique_taxa")})
+  
   recipient_unique_taxa <- reactive({
     out <- anti_join(recipient_nonzero_taxa(), donor_nonzero_taxa(), by = "Taxon")
     return(out)
   })
+  output$recipient_unique_taxa <- renderDataTable({recipient_unique_taxa()}, options = list(lengthMenu = c(50,100,200), pageLength = 50, orderClasses = TRUE))
+  observeEvent(input$showhide_recipient_taxa, {toggle("recipient_unique_taxa")})
+  
   post_fmt_unique_taxa <- reactive({
     out <- anti_join(anti_join(post_fmt_nonzero_taxa(), donor_nonzero_taxa(), by = "Taxon"), recipient_nonzero_taxa(), by = "Taxon")
     return(out)
   })
+  output$post_fmt_unique_taxa <- renderDataTable({post_fmt_unique_taxa()}, options = list(lengthMenu = c(50,100,200), pageLength = 50, orderClasses = TRUE))
+  observeEvent(input$showhide_unique_taxa, {toggle("post_fmt_unique_taxa")})
+  
   post_fmt_nonunique_taxa <- reactive({
     a <- semi_join(post_fmt_nonzero_taxa(), donor_unique_taxa(), by = "Taxon")
     b <- semi_join(post_fmt_nonzero_taxa(), recipient_unique_taxa(), by = "Taxon")
@@ -858,8 +892,11 @@ shinyServer(function(input, output, session) {
   })
   shared_throughout_taxa <- reactive({
     output <- semi_join(shared_pre_taxa(), post_fmt_nonzero_taxa(), by = "Taxon")
+	output$Specificity <- "Shared"
     return(output)
   })
+  output$shared_throughout_taxa <- renderDataTable({shared_throughout_taxa()}, options = list(lengthMenu = c(50,100,200), pageLength = 50, orderClasses = TRUE))
+  observeEvent(input$showhide_shared_taxa, {toggle("shared_throughout_taxa")})
 
   post_fmt_selected_taxa <- reactive({
     if(input$remove_OTUs_test_specific) {
@@ -874,17 +911,23 @@ shinyServer(function(input, output, session) {
   N_Donor_taxa <- reactive({
     if (is.null(donor_unique_taxa())) {return()}
     return(nrow(donor_unique_taxa()))})
-  output$N_Donor_taxa <- renderText({N_Donor_taxa()})
+    output$N_Donor_taxa <- renderUI({
+  	  HTML(paste("<strong>N", tags$sub("Donor"), ":</strong>", " ",N_Donor_taxa(), sep = ""))
+    })
 
   N_Recipient_taxa <- reactive({
     if (is.null(recipient_unique_taxa())) {return()}
     return(nrow(recipient_unique_taxa()))})
-  output$N_Recipient_taxa <- renderText({N_Recipient_taxa()})
+    output$N_Recipient_taxa <- renderUI({
+  	  HTML(paste("<strong>N", tags$sub("Recipient"), ":</strong>", " ",N_Recipient_taxa(), sep = ""))
+    })
 
   N_P_Unique_taxa <- reactive({
     if (is.null(post_fmt_unique_taxa())) {return()}
     return(nrow(post_fmt_unique_taxa()))})
-  output$N_P_Unique_taxa <- renderText({N_P_Unique_taxa()})
+    output$N_P_Unique_taxa <- renderUI({
+  	  HTML(paste("<strong>N", tags$sub("Post-FMT (Unique)"), ":</strong>", " ",N_P_Unique_taxa(), sep = ""))
+    })
 
   N_otus_nonunique_post_fmt_taxa <- reactive({
     if (is.null(post_fmt_nonqunique_taxa())) {return()}
@@ -899,7 +942,9 @@ shinyServer(function(input, output, session) {
   N_P_Shared_taxa <- reactive({
     if (is.null(shared_throughout_taxa())) {return()}
     return(nrow(shared_throughout_taxa()))})
-  output$N_P_Shared_taxa <- renderText({N_P_Shared_taxa()})
+    output$N_P_Shared_taxa <- renderUI({
+  	  HTML(paste("<strong>N", tags$sub("Post-FMT (Shared)"), ":</strong>", " ",N_P_Shared_taxa(), sep = ""))
+    })
 
   N_otus_post_fmt_nonzero_taxa <- reactive({
     if (is.null(post_fmt_nonzero_taxa())) {return()}
@@ -911,7 +956,9 @@ shinyServer(function(input, output, session) {
     if (is.null(post_fmt_selected_taxa())) {return()}
     return(nrow(post_fmt_selected_taxa()))
   })
-  output$N_P_Total_taxa <- renderText({N_P_Total_taxa()})
+  output$N_P_Total_taxa <- renderUI({
+	  HTML(paste("<strong>N", tags$sub("Post-FMT (Total)"), ":</strong>", " ",N_P_Total_taxa(), sep = ""))
+  })
 
   output$remove_OTUs_taxa <- renderText({
     if (input$remove_OTUs_test_specific){
@@ -1010,23 +1057,29 @@ shinyServer(function(input, output, session) {
     if (is.null(P_Donor_table_taxa())) {return()}
     return(nrow(P_Donor_table_taxa()))
   })
-  output$P_Donor_taxa <- renderText({P_Donor_taxa()})
+  output$N_P_Donor_taxa <- renderUI({
+	  HTML(paste("<strong>N", tags$sub("Donor| Post-FMT"), ":</strong>", " ",N_P_Donor_taxa(), sep = ""))
+  })
 
   # D_Engraft_taxa the proportion of donor taxa that made it into the post-transplant samples
   D_Engraft_taxa <- reactive({
     if (is.null(donor_unique_taxa())) {return()}
-    fraction <- P_Donor_taxa()/N_Donor_taxa()
+    fraction <- N_P_Donor_taxa()/N_Donor_taxa()
     return(fraction)
   })
-  output$D_Engraft_taxa <- renderText({D_Engraft_taxa()})
+  output$D_Engraft_taxa <- renderUI({
+	  HTML(paste("<strong>D", tags$sub("Engraft"), ":</strong>", " ",D_Engraft_taxa(), sep = ""))
+  })
 
   # P_Donor_taxa, the proportion of taxa in post-transplant samples that came from the donor
   P_Donor_taxa <- reactive({
     if (is.null(post_fmt_selected_taxa())) {return()}
-    fraction <- P_Donor_taxa()/N_P_Total_taxa()
+    fraction <- N_P_Donor_taxa()/N_P_Total_taxa()
     return(fraction)
   })
-  output$P_Donor_taxa <- renderText({P_Donor_taxa()})
+  output$P_Donor_taxa <- renderUI({
+	  HTML(paste("<strong>P", tags$sub("Donor"), ":</strong>", " ",P_Donor_taxa(), sep = ""))
+  })
 
   # P_Recipient_table_taxa, the table of taxa in the post-transplant samples that came from the recipient
   P_Recipient_table_taxa <- reactive({
@@ -1041,23 +1094,29 @@ shinyServer(function(input, output, session) {
     if (is.null(P_Recipient_table_taxa())) {return()}
     return(nrow(P_Recipient_table_taxa()))
   })
-  output$P_Recipient_taxa <- renderText({P_Recipient_taxa()})
+  output$N_P_Recipient_taxa <- renderUI({
+	  HTML(paste("<strong>N", tags$sub("Recipient| Post-FMT"), ":</strong>", " ",N_P_Recipient_taxa(), sep = ""))
+  })
 
   # R_Persist_taxa the proportion of recipient taxa that remained in the post-transplant samples
   R_Persist_taxa <- reactive({
     if (is.null(recipient_unique_taxa())) {return()}
-    fraction <- P_Recipient_taxa()/N_Recipient_taxa()
+    fraction <- N_P_Recipient_taxa()/N_Recipient_taxa()
     return(fraction)
   })
-  output$R_Persist_taxa <- renderText({R_Persist_taxa()})
+  output$R_Persist_taxa <- renderUI({
+	  HTML(paste("<strong>R", tags$sub("Persist"), ":</strong>", " ",R_Persist_taxa(), sep = ""))
+  })
 
   # P_Recipient_taxa, the proportion of taxa in post-transplant samples that came from the recipient
   P_Recipient_taxa <- reactive({
     if (is.null(post_fmt_selected_taxa())) {return()}
-    fraction <- P_Recipient_taxa()/N_P_Total_taxa()
+    fraction <- N_P_Recipient_taxa()/N_P_Total_taxa()
     return(fraction)
   })
-  output$P_Recipient_taxa <- renderText({P_Recipient_taxa()})
+  output$P_Recipient_taxa <- renderUI({
+	  HTML(paste("<strong>P", tags$sub("Recipient"), ":</strong>", " ",P_Recipient_taxa(), sep = ""))
+  })
   
   # P_Shared_taxa , proporiton of taxa in post-transplant samples that are shared
   P_Shared_taxa <- reactive({
@@ -1065,7 +1124,9 @@ shinyServer(function(input, output, session) {
 	  fraction <- N_P_Shared_taxa()/N_P_Total_taxa()
 	  return(fraction)  	
   })
-  output$P_Shared_taxa <- renderText({P_Shared_taxa()})
+  output$P_Shared_taxa <- renderUI({
+	  HTML(paste("<strong>P", tags$sub("Shared"), ":</strong>", " ",P_Shared_taxa(), sep = ""))
+  })
   
   # P_Unique_taxa, proporiton of taxa in post-transplant samples that are unique
   P_Unique_taxa <- reactive({
@@ -1073,7 +1134,9 @@ shinyServer(function(input, output, session) {
 	  fraction <- N_P_Unique_taxa()/N_P_Total_taxa()
 	  return(fraction)
   })
-  output$P_Unique_taxa <- renderText({P_Unique_taxa()})
+  output$P_Unique_taxa <- renderUI({
+	  HTML(paste("<strong>P", tags$sub("Unique"), ":</strong>", " ",P_Unique_taxa(), sep = ""))
+  })
   
   
   
@@ -1093,7 +1156,7 @@ shinyServer(function(input, output, session) {
       N_unique_vis_taxa <- N_P_Unique_taxa()
       N_shared_vis_taxa <- N_P_Shared_taxa()
     }
-    p <- visualize_metrics(N_Donor_taxa(), N_Recipient_taxa(), N_P_Total_taxa(), P_Donor_taxa(), P_Recipient_taxa(), N_unique_vis_taxa, N_shared_vis_taxa, paste(post_fmt(), "(Taxa)", sep = " "))
+    p <- visualize_metrics(N_Donor_taxa(), N_Recipient_taxa(), N_P_Total_taxa(), N_P_Donor_taxa(), N_P_Recipient_taxa(), N_unique_vis_taxa, N_shared_vis_taxa, paste(post_fmt(), "(Taxa)", sep = " "))
     return(p)
 
   })
@@ -1160,8 +1223,7 @@ shinyServer(function(input, output, session) {
   })
 
 
-
-
+  
 
   # Handle downloading of zip file of all tables
   output$xall <- downloadHandler(filename = function() {

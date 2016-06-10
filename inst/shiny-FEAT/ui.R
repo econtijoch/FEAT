@@ -2,6 +2,7 @@ require(shiny)
 require(DT)
 options(shiny.maxRequestSize=200*1024^2)
 require(shinyBS)
+require(shinyjs)
 
 # Define UI for application
 shinyUI(fluidPage(
@@ -9,6 +10,7 @@ shinyUI(fluidPage(
              ".shiny-output-error { visibility: hidden; }",
              ".shiny-output-error:before { visibility: hidden; }"),
   withMathJax(),
+  useShinyjs(),
   titlePanel(h1("FMT Efficacy Analysis Toolkit v2.1", align = "left"), windowTitle = "FMT Efficacy Analysis Toolkit (FEAT)"),
 
   navlistPanel(
@@ -57,7 +59,7 @@ shinyUI(fluidPage(
                                                         span(strong(textOutput('num_donor_samples')), style = "color:blue"),
                                                         span(strong(textOutput('num_recipient_samples')), style = "color:red"),
                                                         span(strong(textOutput('num_post_fmt_samples')), style = "color:green"),
-														bsPopover('split_into_experiment', "Select or Update FMT Details", "Select or Update the Donor, Recipient, and Post-FMT metadata categories from the selected column of the mapping file.")
+														bsPopover('split_into_experiment', "Select or Update FMT Details", "Select or Update the Donor, Recipient, and Post-FMT metadata categories from the selected column of the mapping file.", placement = 'top')
                                                         )
                                               )
                              ),
@@ -65,6 +67,7 @@ shinyUI(fluidPage(
                              conditionalPanel(condition = "output.second_check == 'Experiment-specific table created...'",
                                               wellPanel(h3("3) Normalize and Filter Samples"),
                                                         numericInput("min_OTU_fraction", label = h5("Minimum Relative Abundance Filter"), min = 0.0001, max = 0.1, value = 0.001),
+														actionButton('update_min_fraction_filter', 'Apply/Update Filter'),
                                                         bsPopover('min_OTU_fraction', "Relative Abundance Filter", "The minimum fraction that an OTU must represent in a sample (in the sample it is most abundant), in order to be kept. (i.e. an OTU must represent at least this fraction of the microbiota of any one sample in order to be kept)"),
                                                         hr(),
                                                         span(strong(textOutput('third_check')), style = "color:green"),
@@ -98,7 +101,7 @@ shinyUI(fluidPage(
              hr(),
              p(class = "text-center", downloadButton('x0', 'Download This Table')) ),
 
-    "Output",
+    "Taxonomy-Independent Output",
 
     tabPanel("Transplant Metrics by OTU",
              h2("Transplant Metrics by OTU"),
@@ -172,8 +175,8 @@ shinyUI(fluidPage(
 
     ),
 
-    tabPanel("Interactive Plot",
-             h2("Interactive Plot"),
+    tabPanel("Interactive Ordination Plot (By OTU)",
+             h2("Interactive Ordination Plot (By OTU)"),
 
              fluidRow(column(6,
                              wellPanel(selectInput('distance_method', label = h4("Distance Method"), choices = list("Euclidean" = "euclidean", "Manhattan" = "manhattan", "Canberra" = "canberra", "Binary" = "binary", "Minkowski" = "minkowski"), selected = "euclidean"),
@@ -194,6 +197,10 @@ shinyUI(fluidPage(
              fluidRow(column(12,
                              plotOutput("plot1"))),
              hr(),
+			 fluidRow(column(12,
+				 			 plotOutput('spree_plot'))),
+
+			 hr(),
              fluidRow(column(2,
                              h4("PC1 Percent Explained"),
                              textOutput("pc1")),
@@ -214,6 +221,27 @@ shinyUI(fluidPage(
              p(class = "text-center", downloadButton('pc_table_download', "Download Table with Data"))
              )
     ),
+	
+    tabPanel("OTUs Unique to Each Condition",
+             h2("OTUs Unique to Each Condition"),
+             p("A data table containing only OTUs that pass the following filtering criteria. 1) The OTU must be present in at least the fraction of samples of a condition as designated in the settings. 2) If the OTU is present in the donor and not in the recipient, it is kept, and designated as 'specific' to the donor. If the OTU is present in the recipient and not in the donor, it is kept and designated as 'specific' to the recipient. If the OTU is present only in the post-FMT samples, but in neither the donor nor the recipient, it is kept, and designated as specific to the post-FMT samples. Theoretically there would be no OTUs specific for the post-FMT samples, and thus this serves as some sort of negative control."),
+			 h4("Donor-Specific OTUs"),
+			 actionButton("showhide_donor", "Show/Hide"),
+			 dataTableOutput('donor_unique'),
+			 hr(),
+			 h4("Recipient-Specific OTUs"),
+			 actionButton("showhide_recipient", "Show/Hide"),
+			 dataTableOutput('recipient_unique'),
+			 hr(),
+			 h4('OTUs Shared Throughout'),
+			 actionButton("showhide_shared", "Show/Hide"),
+			 dataTableOutput('shared_throughout'),
+			 hr(),
+			 h4('Post-FMT Unique OTUs'),
+			 actionButton("showhide_post_fmt", "Show/Hide"),
+			 dataTableOutput('post_fmt_unique'),
+             hr()),
+	
 
     tabPanel("OTU Abundances",
              h2("OTU Abundances"),
@@ -230,13 +258,7 @@ shinyUI(fluidPage(
              hr(),
              p(class = "text-center", downloadButton('x5', 'Download This Table'))),
 
-    tabPanel("OTUs Unique to Each Condition",
-             h2("OTUs Unique to Each Condition"),
-             p("A data table containing only OTUs that pass the following filtering criteria. 1) The OTU must be present in at least the fraction of samples of a condition as designated in the settings. 2) If the OTU is present in the donor and not in the recipient, it is kept, and designated as 'specific' to the donor. If the OTU is present in the recipient and not in the donor, it is kept and designated as 'specific' to the recipient. If the OTU is present only in the post-FMT samples, but in neither the donor nor the recipient, it is kept, and designated as specific to the post-FMT samples. Theoretically there would be no OTUs specific for the post-FMT samples, and thus this serves as some sort of negative control."),
-             dataTableOutput("otus_unique_to_condition"),
-             hr(),
-             p(class = "text-center", downloadButton('x3', 'Download This Table'))),
-
+   
 
     tabPanel("Raw OTU Table + Metadata",
              h2("Raw OTU Table + Metadata"),
@@ -252,7 +274,7 @@ shinyUI(fluidPage(
              hr(),
              p(class = "text-center", downloadButton('x2', 'Download This Table'))),
 
-    "Taxonomy-Dependent (Under Construction)",
+    "Taxonomy-Dependent Output",
 
     tabPanel("Add Taxonomic Information",
              h2("Add Taxonomic Information"),
@@ -264,13 +286,6 @@ shinyUI(fluidPage(
              ),
              p('Taxonomic information is added to the individually created tables for the donor, recipient, and post-transplant recipient, containing only stably present OTUs. Then, OTUs that represent the same taxonomic group are collapsed into one, with the resulting abundance information representing the average abundance of all OTUs that correspond to that taxa. These tables now contain ')
              ),
-
-    tabPanel("Taxa Unique to Each Condition",
-             h2("Taxa Unique to Each Condition"),
-             p("A data table containing only Taxa that pass the following filtering criteria. 1) The Taxa must be present in at least the fraction of samples of a condition as designated in the settings. 2) If the Taxa is present in the donor and not in the recipient, it is kept, and designated as 'specific' to the donor. If the Taxa is present in the recipient and not in the donor, it is kept and designated as 'specific' to the recipient. If the Taxa is present only in the post-FMT samples, but in neither the donor nor the recipient, it is kept, and designated as specific to the post-FMT samples. Theoretically there would be no Taxa specific for the post-FMT samples, and thus this serves as some sort of negative control."),
-             dataTableOutput("otus_unique_to_condition_taxa"),
-             hr(),
-             p(class = "text-center", downloadButton('x3_taxa', 'Download This Table'))),
 
     tabPanel("Transplant Metrics by Taxa",
              h2("Transplant Metrics by Taxa"),
@@ -285,82 +300,87 @@ shinyUI(fluidPage(
                              textOutput("remove_OTUs_taxa"))
              ),
              hr(),
-             h4("Numbers of Taxa in each sample set"),
              fluidRow(
-               column(2,
-                      wellPanel(style = 'overflow:hidden;',
-                                h4(HTML(paste("N", tags$sub("Donor"), sep = ""))),
-                                helpText("The number of Taxa that are reliably and exclusively in the donor."),
-                                h4(textOutput("num_otus_unique_donor_taxa")))),
-               column(2,
-                      wellPanel(style = 'overflow:hidden;',
-                                h4(HTML(paste("N", tags$sub("Recipient"), sep = ""))),
-                                helpText("The number of Taxa that are reliably and exclusively in the recipient."),
-                                h4(textOutput("num_otus_unique_recipient_taxa")))),
-               column(4,
-                      wellPanel(style = 'overflow:hidden;',
-                                h4(HTML(paste("N", tags$sub("Post-FMT"), sep = ""))),
-                                helpText("The number of Taxa that are reliably in the post-transplant samples (minus number that are unique to the post-transplant samples and the number that are shared throughout, if this is selected for)."),
-                                h4(textOutput("num_otus_post_fmt_selected_taxa")))),
-               column(2,
-                      wellPanel(style = 'overflow:hidden;',
-                                h4(HTML(paste("N", tags$sub("Post-FMT (Unique)"), sep = ""))),
-                                helpText("Number of Taxa that are reliably and exclusively in the post-transplant samples. This number should theoretically be low/zero, but can serve as a useful 'negative control'."),
-                                h4(textOutput("num_otus_unique_post_fmt_taxa")))),
-               column(2,
-                      wellPanel(style = 'overflow:hidden;',
-                                h4(HTML(paste("N", tags$sub("Shared"), sep = ""))),
-                                helpText("Number of Taxa that are reliably present in donor and recipient samples throughout."),
-                                h4(textOutput("num_otus_shared_throughout_taxa"))))
-             ),
-             hr(),
-             h4("Donor Metrics"),
-             fluidRow(
-               column(4,
-                      wellPanel(style = 'overflow:hidden;',
-                                h4(HTML(paste("FMT", tags$sub("D"), sep = ""))),
-                                helpText("The number of OTUs in the post-transplant samples that came from the donor. $$FMT_{D} = | N_{Donor} \\cap N_{Post-FMT} |$$"),
-                                h4(textOutput("FMT_don_taxa")))),
-               column(4,
-                      wellPanel(style = 'overflow:hidden;',
-                                h4(HTML(paste("D", tags$sub("FracFMT"), sep = ""))),
-                                helpText("The proportion of the donor microbiota that engrafts into the recipient. $$D_{FracFMT} = \\frac{|N_{Donor} \\cap N_{Post-FMT} |}{|N_{Donor}|}$$"),
-                                h4(textOutput("D_Frac_FMT_taxa")))),
-               column(4,
-                      wellPanel(style = 'overflow:hidden;',
-                                h4(HTML(paste("FMT", tags$sub("FracD"), sep = ""))),
-                                helpText("The proportion of OTUs in the post-transplant samples that is derived from the donor.$$FMT_{FracD} = \\frac{|N_{Donor} \\cap N_{Post-FMT} |}{|N_{Post-FMT}|}$$"),
-                                h4(textOutput("FMT_FracD_taxa"))))
-             ),
-             hr(),
-             h4("Recipient Metrics"),
-             fluidRow(
-               column(4,
-                      wellPanel(style = 'overflow:hidden;',
-                                h4(HTML(paste("FMT", tags$sub("R"), sep = ""))),
-                                helpText("The number of OTUs in the post-transplant samples that came from the recipient. $$FMT_{R} = | N_{Recipient} \\cap N_{Post-FMT} |$$"),
-                                h4(textOutput("FMT_rec_taxa")))),
-               column(4,
-                      wellPanel(style = 'overflow:hidden;',
-                                h4(HTML(paste("R", tags$sub("FracFMT"), sep = ""))),
-                                helpText("The proportion of the recipient microbiota that remains after the FMT. $$R_{FracFMT} = \\frac{|N_{Recipient} \\cap N_{Post-FMT} |}{|N_{Recipient}|}$$"),
-                                h4(textOutput("R_Frac_FMT_taxa")))),
-               column(4,
-                      wellPanel(style = 'overflow:hidden;',
-                                h4(HTML(paste("FMT", tags$sub("FracR"), sep = ""))),
-                                helpText("The proportion of OTUs in the post-transplant samples that is derived from the recipient. $$FMT_{FracR} = \\frac{|N_{Recipient} \\cap N_{Post-FMT} |}{|N_{Post-FMT}|}$$"),
-                                h4(textOutput("FMT_FracR_taxa"))))
+               column(6,
+                      wellPanel(style = 'overflow:hidden;background-color:white',
+					  h4("Numbers of Taxa in each sample set"),
+					  br(),
+                                uiOutput("N_Donor_taxa"),
+								bsPopover('N_Donor_taxa', title = HTML(paste("N", tags$sub("Donor"), sep = "")), "The number of Taxa that are reliably and exclusively in the donor.", placement = 'top'),
+								br(),
+								uiOutput("N_Recipient_taxa"),
+								bsPopover('N_Recipient_taxa', title = HTML(paste("N", tags$sub("Recipient"), sep = "")), "The number of Taxa that are reliably and exclusively in the recipient.", placement = 'top'),
+								br(),
+								uiOutput("N_P_Total_taxa"),
+								bsPopover('N_P_Total_taxa', title = HTML(paste("N", tags$sub("Post-FMT"), sep = "")), "The number of Taxa that are reliably in the post-transplant samples (minus number that are unique to the post-transplant samples and the number that are shared throughout, if this is selected for).", placement = 'top'),
+								br(),
+								uiOutput("N_P_Unique_taxa"),
+								bsPopover('N_P_Unique_taxa', title = HTML(paste("N", tags$sub("Post-FMT (Unique)"), sep = "")), "Number of Taxa that are reliably and exclusively in the post-transplant samples. This number should theoretically be low or zero, but can serve as a useful pseudo-negative control. These Taxa were in NEITHER the Donor NOR the Recipient microbiotas.", placement = 'top'),
+								br(),
+								uiOutput("N_P_Shared_taxa"),
+								bsPopover('N_P_Shared_taxa', title = HTML(paste("N", tags$sub("Post-FMT (Shared)"), sep = "")), "Number of Taxa that are reliably present in both donor AND recipient samples throughout.", placement = 'top'),
+								br(),
+		   					 uiOutput("N_P_Donor_taxa"),
+		   					 bsPopover("N_P_Donor_taxa", title = HTML(paste("N", tags$sub("Donor | Post-FMT"), sep = "")), content = "The number of Taxa in the post-transplant samples that came from the donor.", placement = 'top'),
+							 br(),
+					 uiOutput("N_P_Recipient_taxa"),
+					 bsPopover("N_P_Recipient_taxa", title = HTML(paste("N", tags$sub("Recipient | Post-FMT"), sep = "")), content = "The number of Taxa in the post-transplant samples that came from the recipient.", placement = 'top')
+								)),
+				column(6, 
+					 wellPanel(style = 'overflow:hidden;background-color:white',
+					 h4("FMT Metrics"),
+					 br(),
+					 uiOutput("D_Engraft_taxa"),
+					 bsPopover('D_Engraft_taxa', title = HTML(paste("D", tags$sub("Engraft"), sep = "")), content = HTML(paste("The proportion of the donor microbiota that engrafts into the recipient.", tags$img(src= 'D-engraft.png'), sep = "")), placement = 'top'),
+					 br(),
+					 uiOutput("R_Persist_taxa"),
+					 bsPopover('R_Persist_taxa', title = HTML(paste("R", tags$sub("Persist"), sep = "")), content = HTML(paste("The proportion of the recipient microbiota that persists after the transplant.", tags$img(src = 'R-persist.png'), sep = "")), placement = 'top'),					 
+					 br(),
+					 uiOutput("P_Donor_taxa"),
+					 bsPopover("P_Donor_taxa", title = HTML(paste("P", tags$sub("Donor"), sep = "")), content = HTML(paste("The proportion of Taxa in the post-transplant samples that is derived from the donor.", tags$img(src = 'P-donor.png'), sep = "")), placement = 'top'),
+					 br(),
+					 uiOutput("P_Recipient_taxa"),
+					 bsPopover("P_Recipient_taxa", title = HTML(paste("P", tags$sub("Recipient"), sep = "")), content = HTML(paste("The proportion of Taxa in the post-transplant samples that is derived from the recipient.", tags$img(src = 'P-recipient.png'), sep = "")), placement = 'top'),
+					 br(),
+					 uiOutput("P_Unique_taxa"),
+					 bsPopover("P_Unique_taxa", title = HTML(paste("P", tags$sub("Unique"), sep = "")), content = HTML(paste("The proportion of Taxa in the post-transplant samples that are neither in the donor NOR in the recipient.", tags$img(src = 'P-unique.png'), sep = "")), placement = 'top'),
+					 br(),
+					 uiOutput("P_Shared_taxa"),
+					 bsPopover("P_Shared_taxa", title = HTML(paste("P", tags$sub("Shared"), sep = "")), content = HTML(paste("The proportion of Taxa in the post-transplant samples that are shared in both the donor AND the recipient.", tags$img(src = 'P-shared.png'), sep = "")), placement = 'top')))
              ),
              hr(),
              h4("Visualization of Transplant"),
-             fluidRow(wellPanel(style = 'overflow:hidden;',
-                                plotOutput("metric_visualization_taxa")
-             )),
+			 plotOutput("metric_visualization_taxa"),
+			 hr(),
              p(class = "text-center", downloadButton('metric_vis_download_taxa', "Download Plot as .png")),
              hr(),
              tableOutput('metrics_taxa'),
              p(class = "text-center", downloadButton('xmetrics_taxa', 'Download As A Table'))
     ),
+	
+    tabPanel("Taxa Unique to Each Condition",
+             h2("Taxa Unique to Each Condition"),
+             p("A data table containing only Taxa that pass the following filtering criteria. 1) The Taxa must be present in at least the fraction of samples of a condition as designated in the settings. 2) If the Taxa is present in the donor and not in the recipient, it is kept, and designated as 'specific' to the donor. If the Taxa is present in the recipient and not in the donor, it is kept and designated as 'specific' to the recipient. If the Taxa is present only in the post-FMT samples, but in neither the donor nor the recipient, it is kept, and designated as specific to the post-FMT samples. Theoretically there would be no Taxa specific for the post-FMT samples, and thus this serves as some sort of negative control."),
+			 hr(),
+			 h4("Donor-Specific Taxa"),
+			 actionButton("showhide_donor_taxa", "Show/Hide"),
+			 dataTableOutput('donor_unique_taxa'),
+			 hr(),
+			 h4("Recipient-Specific Taxa"),
+			 actionButton("showhide_recipient_taxa", "Show/Hide"),
+			 dataTableOutput('recipient_unique_taxa'),
+			 hr(),
+			 h4('Taxa Shared Throughout'),
+			 actionButton("showhide_shared_taxa", "Show/Hide"),
+			 dataTableOutput('shared_throughout_taxa'),
+			 hr(),
+			 h4('Post-FMT Unique Taxa'),
+			 actionButton("showhide_unique_taxa", "Show/Hide"),
+			 dataTableOutput('post_fmt_unique_taxa'),
+             hr()
+             #p(class = "text-center", downloadButton('x3_taxa', 'Download This Table'))
+			 ),
+	
 
     tabPanel("OTU Abundances + Taxonomy",
              h3("OTU Abundances + Taxonomy"),
