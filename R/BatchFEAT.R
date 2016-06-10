@@ -102,7 +102,7 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
     recipient <- as.character(transplant_pairs[i, "Recipient"])
     post_fmt <- as.character(transplant_pairs[i, "Post_FMT"])
     comment <- as.character(transplant_pairs[i, "Comment"])
-    output_name <- post_fmt
+	output_name <- paste(post_fmt, comment, sep = "_")
     dir.create(file.path(getwd(), output_name), showWarnings = FALSE)
     setwd(file.path(getwd(), output_name))
     cat("-----Start Iteration (", i, "of", nrow(transplant_pairs),") -----\n")
@@ -239,7 +239,7 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
 	write.csv(full_relative_abundance, paste(output_name, 'full_relative_abundance.csv', sep = "_"), row.names = FALSE)
 	write.csv(full_relative_abundance_excl, paste(output_name, 'excl_relative_abundance.csv', sep = "_"), row.names = FALSE)
 	
-
+	
     setwd('../')
 
    
