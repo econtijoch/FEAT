@@ -4,8 +4,8 @@
 \alias{visualize_metrics_batch}
 \title{Function to produce FMT metric visualizations and save the file}
 \usage{
-visualize_metrics_batch(N_donor, N_recipient, N_postFMT, FMT_donor,
-  FMT_recipient, N_unique_postfmt, N_shared_postfmt, title_text, output_name,
+visualize_metrics_batch(N_donor, N_recipient, N_postFMT, N_P_Donor,
+  N_P_Recipient, N_unique_postfmt, N_shared_postfmt, title_text, output_name,
   exp_id)
 }
 \arguments{
@@ -15,15 +15,15 @@ visualize_metrics_batch(N_donor, N_recipient, N_postFMT, FMT_donor,
 
 \item{N_postFMT}{number of otus in post-fmt}
 
-\item{FMT_donor}{number of post-fmt otus from donor}
-
-\item{FMT_recipient}{number of post-fmt otus from recipient}
-
 \item{N_unique_postfmt}{number of post-fmt otus that are unique to post-fmt condition}
 
 \item{N_shared_postfmt}{number of post-fmt otus that are shared between donor and recipient}
 
 \item{title_text}{Text to generate title}
+
+\item{N_P_Donoror}{number of post-fmt otus from donor}
+
+\item{N_P_Recipientipient}{number of post-fmt otus from recipient}
 }
 \value{
 a plot that depicts FMT efficacy, saved to PDF

@@ -27,12 +27,30 @@ shinyServer(function(input, output, session) {
     if(is.null(map_file)){return()}
     map <- read.delim(file = map_file$datapath)
     map$X.SampleID <- as.character(map$X.SampleID)
+	if ('biomass_ratio' %in% colnames(map)) {
+		map <- map[!is.na(map$biomass_ratio), ]
+		} else {
+		  stop("Biomass data not in metadata file")
+		}
     return(map)
+  })
+
+  output$Tax_add <- renderUI({
+	  conditionalPanel(condition = "input.add_tax_UI == true", 
+		  fileInput("id_tax_file", label = h5("Input Taxonomy Map"), accept = c('txt', 'text/plain'))
+		  )
+  })
+  
+  output$scale_biomass <- renderUI({
+	  if ('biomass_ratio' %in% colnames(mapping())) {
+		  selectInput(inputId = 'scale_samples', label = 'Scale abundances by biomass?', choices = c("Yes" = TRUE, "No" = FALSE), selected = TRUE)
+		  #helpText('Biomass data has been detected in the mapping file, indicate whether or not you would like to scale sample abundances by the biomass.')
+	  } else {}
   })
 
   # Import biom table
   biom_first_filtered <- reactive({
-    validate(need(!is.null(input$input_otu_table), "Please load an OTU table."))
+    validate(need(!is.null(input$input_otu_table) && !is.null(input$mapping_file), "Please load an OTU table and mapping file."))
     raw_table <- input$input_otu_table
     withProgress(message = 'Loading OTU table', value = 0.35, {
     biom_table <- read_biom(raw_table$datapath)

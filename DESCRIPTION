@@ -1,8 +1,8 @@
 Package: FEAT
 Type: Package
 Title: FMT Efficacy Analysis Toolkit
-Version: 2.0
-Date: 2016-01-27
+Version: 3.0
+Date: 2016-08-16
 Author: Eduardo Contijoch
 Maintainer: Eduardo Contijoch <eduardo.contijoch@gmail.com>
 Description: Interactive Shiny App + command line tools to analyze efficacy of

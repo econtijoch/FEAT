@@ -4,7 +4,7 @@
 \alias{visualize_metrics}
 \title{Function to produce FMT metric visualizations}
 \usage{
-visualize_metrics(N_donor, N_recipient, N_postFMT, FMT_donor, FMT_recipient,
+visualize_metrics(N_donor, N_recipient, N_postFMT, N_P_Don, N_P_Rec,
   N_unique_postfmt, N_shared_postfmt, title_text)
 }
 \arguments{
@@ -14,15 +14,15 @@ visualize_metrics(N_donor, N_recipient, N_postFMT, FMT_donor, FMT_recipient,
 
 \item{N_postFMT}{number of otus in post-fmt}
 
-\item{FMT_donor}{number of post-fmt otus from donor}
-
-\item{FMT_recipient}{number of post-fmt otus from recipient}
-
 \item{N_unique_postfmt}{number of post-fmt otus that are unique to post-fmt condition}
 
 \item{N_shared_postfmt}{number of post-fmt otus that are shared between donor and recipient}
 
 \item{title_text}{Text to generate title}
+
+\item{N_P_Donoror}{number of post-fmt otus from donor}
+
+\item{N_P_Recipientipient}{number of post-fmt otus from recipient}
 }
 \value{
 a plot that depicts FMT efficacy

@@ -31,17 +31,17 @@ shinyUI(fluidPage(
     tabPanel("Select Inputs & Settings",
              h2("Select Inputs & Settings"),
              fluidRow(column(6,
-                             wellPanel(h3("1) Load Mapping File & OTU Table"),
-                                       fileInput("mapping_file", label = h5("Mapping File"), accept = c('txt', 'text/plain')),
-                                       bsPopover("mapping_file", "Mapping File", "This should be the same mapping file used to create your OTU table, and should contain at least one metadata category to select the details of the transplant for your experiment of interest."),
-                                       hr(),
+                             wellPanel(h3("1) Load Mapping File, OTU Table, and Taxonomic Information"),
                                        fileInput("input_otu_table", label = h5("Input OTU Table"), accept = 'Document'),
 									   bsPopover('input_otu_table', "OTU Table", "Absolute-filtered OTU table in hdf5 BIOM (.biom) format."),
                                        hr(),
+									   fileInput("mapping_file", label = h5("Mapping File"), accept = c('txt', 'text/plain')),
+                                       bsPopover("mapping_file", "Mapping File", "This should be the same mapping file used to create your OTU table, and should contain at least one metadata category to select the details of the transplant for your experiment of interest."),
+                                       hr(),
                                        span(strong(textOutput('zeroeth_check')), style = "color:green"),
                                        hr(),
-                                       h5("OTUs to start:"),
-                                       textOutput("raw_otu_count")
+                                       h5("Starting Number of OTUs:"),
+                                       textOutput("raw_otu_count")									   
                              ),
                              conditionalPanel(condition = "output.zeroeth_check == 'Table loaded successfully...'",
                                               wellPanel(h3("2) Select FMT Samples"),
@@ -89,7 +89,15 @@ shinyUI(fluidPage(
                                                         h5("Exclude post-transplant unique & shared OTUs?"),
                                                         checkboxInput("remove_OTUs_test_specific", "Exclude", value = FALSE),
 														bsPopover('remove_OTUs_test_specific', "Exclude?", "Exclude OTUs that are only in the post-transplant samples (i.e. neither in the donor nor the pre-transplant recipient samples), or shared in all conditions (donor, recipient and post-transplant recipient)"),
-                                                        span(strong("Finished!"), style = "color:green"))
+				 									   hr(),
+				 									   checkboxInput('add_tax_UI', 'Add Taxonomy?', value = TRUE),
+				 						               uiOutput('Tax_add'),
+				 									   bsPopover('id_tax_file', "OTU ID-to-Taxonomy Map", "A .txt file that contains the taxonomy associated with each OTU ID. This can be from the greengenes reference, for example, or from the output of the assign_taxonomy.py function in QIIME."),
+				 									   hr(),
+				 						               span(strong(textOutput('tax_loaded')), style = "color:green"),
+				 									   hr(),
+				 									   uiOutput('scale_biomass')
+                                                       )
                              ))
              )
 
@@ -277,13 +285,6 @@ shinyUI(fluidPage(
     "Taxonomy-Dependent Output",
 
     tabPanel("Add Taxonomic Information",
-             h2("Add Taxonomic Information"),
-             wellPanel(h3("Load ID-to-Taxonomy Map"),
-                       fileInput("id_tax_file", label = h5("Input Taxonomy Map"), accept = c('txt', 'text/plain')),
-                       helpText("Taxonomy map (.txt)"),
-                       hr(),
-                       span(strong(textOutput('tax_loaded')), style = "color:green")
-             ),
              p('Taxonomic information is added to the individually created tables for the donor, recipient, and post-transplant recipient, containing only stably present OTUs. Then, OTUs that represent the same taxonomic group are collapsed into one, with the resulting abundance information representing the average abundance of all OTUs that correspond to that taxa. These tables now contain ')
              ),
 
