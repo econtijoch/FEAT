@@ -1,0 +1,6 @@
+{
+  "name": "FEAT",
+  "tagline": "FMT Efficacy Analysis Toolkit",
+  "body": "<h2>FMT Efficacy Analysis Toolkit</h2>\r\n<p>A distributable package that includes a Shiny app and command-line functions to analyze the efficacy of FMT experiments.</p>\r\n<p>The app will perform most all useful analysis downstream of generating an OTU table (for which you can use QIIME or any other method)</p>\r\n<p>This app requires two packages that are not available on CRAN, but must be downloaded from bioconductor. To do this, simply type the following into the R command line:</p>\r\n\r\n\tsource(\"https://bioconductor.org/biocLite.R\")\r\n\tbiocLite(\"rhdf5\")\r\n\tbiocLite(\"phyloseq\")\r\n\r\n\r\n<p>To launch the Shiny app, simply load the package and run the launchFEAT() command.</p>\r\n\r\n<p>Alternatively, you can run it directly from GitHub:</p>\r\n\r\n\r\n\trequire(shiny)\r\n\trunGitHub('econtijoch/FEAT/', subdir = 'inst/shiny-FEAT/')\r\n\r\n\r\n",
+  "note": "Don't delete this file! It's used internally to help with page regeneration."
+}
