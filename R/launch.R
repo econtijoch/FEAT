@@ -134,16 +134,16 @@ filter_by_metric <- function(table, min_diff, difference_labels) {
 #' @export
 #'
 collapse_taxonomy <- function(table) {
-  mixed_column <- table %>% mutate(Sample_x_Taxon = paste(Specificity,
+  mixed_column <- table %>% dplyr::mutate(Sample_x_Taxon = paste(Specificity,
                                                              Taxon, sep = "_"))
-  collapse <- mixed_column %>% group_by(Sample_x_Taxon) %>%
-    summarise_each(funs(sums_of_numbers_only)) 
+  collapse <- mixed_column %>% dplyr::group_by(Sample_x_Taxon) %>%
+    dplyr::summarise_each(funs(sums_of_numbers_only)) 
 	if (!('fraction' %in% colnames(collapse))) {
 		collapse$fraction <- 'tmp'
 	}
   collapsed <- collapse %>%
-    select(-c(OTU, Sample_x_Taxon, fraction, Quality_Score)) %>%
-    arrange(Specificity)
+    dplyr::select(-c(OTU, Sample_x_Taxon, fraction, Quality_Score)) %>%
+    dplyr::arrange(Specificity)
   output <- table_reorder_first(table_reorder_first(collapsed,
                                                     "Specificity"), "Taxon")
   return(output)

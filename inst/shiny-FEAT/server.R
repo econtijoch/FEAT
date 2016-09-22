@@ -2,763 +2,798 @@ require(phyloseq)
 require(rhdf5)
 require(biom)
 require(shiny)
-require(dplyr)
 require(DT)
 require(ggplot2)
 require(vegan)
 require(lazyeval)
 require(FEAT)
 require(shinyjs)
+require(stringr)
+require(reshape2)
+require(dplyr)
+require(BiomassWorkflow)
 
 # source('helper_funcitons.R')
-ggsave <- ggplot2::ggsave; body(ggsave) <- body(ggplot2::ggsave)[-2]
+ggsave <- ggplot2::ggsave
+body(ggsave) <- body(ggplot2::ggsave)[-2]
 options(digits = 4)
 
 # Define server logic
 shinyServer(function(input, output, session) {
-
-
-  ##########################################################################################
-  # Initial table import & pre-processing                                                  #
-  ##########################################################################################
-  # Import mapping file
-  mapping <- reactive({
-    map_file <- input$mapping_file
-    if(is.null(map_file)){return()}
-    map <- read.delim(file = map_file$datapath)
-    map$X.SampleID <- as.character(map$X.SampleID)
-	if ('biomass_ratio' %in% colnames(map)) {
-		map <- map[!is.na(map$biomass_ratio), ]
-		} else {
-		  stop("Biomass data not in metadata file")
-		}
-    return(map)
-  })
-
-  output$Tax_add <- renderUI({
-	  conditionalPanel(condition = "input.add_tax_UI == true", 
-		  fileInput("id_tax_file", label = h5("Input Taxonomy Map"), accept = c('txt', 'text/plain'))
-		  )
+  # Read OTU Table
+  biom_table <- reactive({
+    validate(need(
+      !is.null(input$input_otu_table) &&
+        !is.null(input$metadata_file),
+      "Please load an OTU table and metadata file."
+    ))
+    raw_table <- input$input_otu_table
+    withProgress(message = "1) Loading OTU table", value = 0.75, {
+      biom_table <- read_biom(raw_table$datapath)
+      data <- as(biom_data(biom_table), "matrix")
+      biom_only <- as.data.frame(t(data))
+      raw_table_otu_count <<- ncol(biom_only)
+      colnames(biom_only) <-
+        paste("OTU", colnames(biom_only), sep = "_")
+      biom_only$X.SampleID <-
+        as.character(row.names(biom_only))
+      row.names(biom_only) <- NULL
+    })
+    return(biom_only)
   })
   
-  output$scale_biomass <- renderUI({
-	  if ('biomass_ratio' %in% colnames(mapping())) {
-		  selectInput(inputId = 'scale_samples', label = 'Scale abundances by biomass?', choices = c("Yes" = TRUE, "No" = FALSE), selected = TRUE)
-		  #helpText('Biomass data has been detected in the mapping file, indicate whether or not you would like to scale sample abundances by the biomass.')
-	  } else {}
+  # Read metadata
+  metadata <- reactive({
+    validate(need(
+      !is.null(input$input_otu_table) &&
+        !is.null(input$metadata_file),
+      "Please load an OTU table and metadata file."
+    ))
+    map_file <- input$metadata_file
+    if (is.null(map_file)) {
+      return()
+    }
+    map <- read.delim(file = map_file$datapath)
+    map$X.SampleID <- as.character(map$X.SampleID)
+    if ("biomass_ratio" %in% colnames(map)) {
+      map <- map[!is.na(map$biomass_ratio), ]
+    } else {
+      map$biomass_ratio <- 1
+    }
+    
+    return(map)
   })
-
-  # Import biom table
-  biom_first_filtered <- reactive({
-    validate(need(!is.null(input$input_otu_table) && !is.null(input$mapping_file), "Please load an OTU table and mapping file."))
-    raw_table <- input$input_otu_table
-    withProgress(message = 'Loading OTU table', value = 0.35, {
-    biom_table <- read_biom(raw_table$datapath)
-    data <- as(biom_data(biom_table), "matrix")
-    biom_only <- as.data.frame(t(data))
-    raw_table_otu_count <<- ncol(biom_only)
-    colnames(biom_only) <- paste("OTU", colnames(biom_only), sep = "_")
-    biom_only$X.SampleID <- as.character(row.names(biom_only))
-    row.names(biom_only) <- NULL
-    })
-    withProgress(message = 'Adding Metadata to OTU table', value = 0.75, {
-    output <- inner_join(biom_only, mapping(), by = 'X.SampleID')
-    })
-    return(output)
+  
+  # Create an output to toggle FMT detail selection UI
+  output$files_loaded <- reactive({
+    return(!(is.null(metadata()) | is.null(taxonomy())))
   })
-  # Get number of OTUs
-  num_otus_raw <- reactive({
-    if (is.null(biom_first_filtered())) {return()}
-    return(raw_table_otu_count)})
-  output$raw_otu_count <- renderText({num_otus_raw()})
-  # Report Success
-  output$zeroeth_check <- renderText({
-    if (!is.null(num_otus_raw())) {
-    output <- "Table loaded successfully..."
+  outputOptions(output, 'files_loaded', suspendWhenHidden = FALSE)
+  
+  output$depth <- renderUI({
+    if (!is.null(input$id_tax_file)) {
+      if (input$toggle_taxonomy) {
+        selectInput(
+          'selected_depth',
+          label = "Select Taxonomic Depth",
+          choices = c(
+            "Kingdom",
+            "Phylum",
+            "Class",
+            "Order",
+            "Family",
+            "Genus",
+            "Species"
+          ),
+          selected = 'Species'
+        )
+      } else{
+        return()
+      }
+    } else {
+      return()
     }
   })
-
-  # Create an experiment-specific OTU table
-  biom_experiment_specific <- eventReactive(input$split_into_experiment, {
-    validate(need(!is.null(input$input_otu_table) && !is.null(input$mapping_file), "Please load an OTU table and mapping file."))
-    tables <- split_into_experiment(biom_first_filtered(), mapping(), input$comparison, input$donor, input$recipient, input$post_fmt)
-    return(tables)
+    
+  # Get number of OTUs to start
+  num_otus_raw <- reactive({
+    if (is.null(biom_table())) {
+      return()
+    }
+    return(raw_table_otu_count)
   })
-
-  N_donor_samples <- eventReactive(input$split_into_experiment, {
-    if (is.null(biom_experiment_specific())) {return()}
-    table <- biom_experiment_specific()
-    donor <- table[table[,input$comparison] == input$donor, ]
-    output <- nrow(donor)
+  # Return number of OTUs to start
+  output$raw_otu_count <- renderText({
+    return(paste("# of OTUs in raw table:", num_otus_raw()))
+  })
+  
+  # Read in taxonomy table, allow for using either greengenes or user-created
+  taxonomy <- reactive({
+    if (is.null(input$id_tax_file)) {
+      return(data.frame())
+    }
+    withProgress(message = "Loading Taxonomy", value = 0, {
+      raw <- input$id_tax_file
+      table <- read.delim(raw$datapath, header = FALSE)
+      incProgress(0.5, detail = "Cleaning Up")
+      if (ncol(table) == 2) {
+        colnames(table) <- c("OTU_ID", "Taxon")
+      } else if (ncol(table) == 3) {
+        colnames(table) <- c("OTU_ID", "Taxon", "QualityScore")
+      }
+      table$OTU_ID <- paste("OTU", table$OTU, sep = "_")
+      output <-
+        as.data.frame(apply(table, 2, function(x)
+          gsub("\\s+", "", x)))
+      output$Taxon <- as.character(output$Taxon)
+      output$OTU_ID <- as.character(output$OTU_ID)
+    })
     return(output)
   })
+  
+  output$check_taxonomy <- renderUI({
+    selectInput(
+      'toggle_taxonomy',
+      label = 'Incorporate Taxonomy?',
+      choices = c(
+        "Work with Taxonomy" = TRUE,
+        "Work with OTUs" = FALSE
+      ),
+      selected = !is.null(input$id_tax_file)
+    )
+  })
+  
+  
+  
+  # Create a data table that combines the metadata and OTU data
+  biom_merged <- reactive({
+    return(dplyr::inner_join(metadata(), biom_table(), by = 'X.SampleID'))
+  })
+  
+  ##########################################################################################
+  # Define relevant FMT conditions                                                         #
+  ##########################################################################################
+  
+  # Define metadata conditions to compare to populate drop-down menus
+  conditions_of_compare <- reactive({
+    if (!is.null(metadata()) && !is.null(input$comparison)) {
+      category <- metadata()[[input$comparison]]
+      return(levels(category))
+    } else{
+      return()
+    }
+  })
+  
+  ## Help select FMT details
+  # Select metadata category to pick FMT details from
+  output$compare_options <- renderUI({
+    selectInput("comparison",
+                "Select Metadata Category",
+                names(metadata()),
+                selected = "Compare")
+  })
+  # Select Donor
+  output$donor <- renderUI({
+    selectInput("donor",
+                "Select donor condition",
+                conditions_of_compare(),
+                selected = conditions_of_compare()[1])
+  })
+  # Select Recipient
+  output$recipient <- renderUI({
+    selectInput(
+      "recipient",
+      "Select pre-transplant recipient condition",
+      conditions_of_compare(),
+      selected = conditions_of_compare()[2]
+    )
+  })
+  # Select Post-FMT
+  output$post_fmt <- renderUI({
+    selectInput(
+      "post_fmt",
+      "Select post-transplant recipient condition",
+      conditions_of_compare(),
+      selected = conditions_of_compare()[3]
+    )
+  })
+  
+  # Create labels to keep things straight
+  donor <-
+    eventReactive(input$go, {
+      return(input$donor)
+    })
+  recipient <-
+    eventReactive(input$go, {
+      return(input$recipient)
+    })
+  post_fmt <-
+    eventReactive(input$go, {
+      return(input$post_fmt)
+    })
+  output$donor_id <- renderText({
+    donor()
+  })
+  output$recipient_id <- renderText({
+    recipient()
+  })
+  output$post_fmt_id <- renderText({
+    post_fmt()
+  })
+  output$test_metric <- renderText({
+    input$comparison_test
+  })
+  
+  # Create Experiment-specific table - only smaples from selected conditions
+  biom_experiment_specific <-
+    eventReactive(input$go, {
+      validate(need(
+        !is.null(input$input_otu_table) &&
+          !is.null(input$metadata_file),
+        "Please load an OTU table and metadata file."
+      ))
+      withProgress(message = "2) Creating Experiment-Specific Table", value = 0.5, {
+        table_out <-
+          biom_merged()[biom_merged()[, input$comparison] %in% c(input$donor, input$recipient, input$post_fmt),]
+      })
+      return(table_out)
+    })
+  
+  # Pull number of donor samples, create output
+  N_donor_samples <-
+    eventReactive(input$go, {
+      if (is.null(biom_experiment_specific())) {
+        return()
+      }
+      table <- biom_experiment_specific()
+      donor <- table[table[, input$comparison] == input$donor,]
+      output <- nrow(donor)
+      return(output)
+    })
   text_donor_samples <- reactive({
     output <- paste("# Donor Samples Used:", N_donor_samples())
     return(output)
   })
-  N_recipient_samples <- eventReactive(input$split_into_experiment, {
-    if (is.null(biom_experiment_specific())) {return()}
-    table <- biom_experiment_specific()
-    recipient <- table[table[,input$comparison] == input$recipient, ]
-    output <- nrow(recipient)
-    return(output)
+  output$num_donor_samples <- renderText({
+    text_donor_samples()
   })
+  
+  # Pull number of recipient samples, create output
+  N_recipient_samples <-
+    eventReactive(input$go, {
+      if (is.null(biom_experiment_specific())) {
+        return()
+      }
+      table <- biom_experiment_specific()
+      recipient <-
+        table[table[, input$comparison] == input$recipient,]
+      output <- nrow(recipient)
+      return(output)
+    })
   text_recipient_samples <- reactive({
     output <- paste("# Recipient Samples Used:", N_recipient_samples())
     return(output)
   })
-  N_post_fmt_samples <- eventReactive(input$split_into_experiment, {
-    if (is.null(biom_experiment_specific())) {return()}
-    table <- biom_experiment_specific()
-    post_fmt <- table[table[,input$comparison] == input$post_fmt, ]
-    output <- nrow(post_fmt)
-    return(output)
-  })
+  output$num_recipient_samples <-
+    renderText({
+      text_recipient_samples()
+    })
+  
+  # Pull number of post-FMT samples, create output
+  N_post_fmt_samples <-
+    eventReactive(input$go, {
+      if (is.null(biom_experiment_specific())) {
+        return()
+      }
+      table <- biom_experiment_specific()
+      post_fmt <-
+        table[table[, input$comparison] == input$post_fmt,]
+      output <- nrow(post_fmt)
+      return(output)
+    })
   text_post_fmt_samples <- reactive({
     output <- paste("# Post-FMT Samples Used:", N_post_fmt_samples())
     return(output)
   })
-
-  output$num_donor_samples <- renderText({text_donor_samples()})
-  output$num_recipient_samples <- renderText({text_recipient_samples()})
-  output$num_post_fmt_samples <- renderText({text_post_fmt_samples()})
-
-  # Report success
-  output$second_check <- renderText({
-    if (!is.null(biom_experiment_specific())) {
-    output <- "Experiment-specific table created..."
-    }
-    else {
-      output <- "..."
-    }
-  })
-
-  # Normalize and filter the experiment-specific table
-  biom_normalized_filtered <- eventReactive(input$update_min_fraction_filter, {
-    table <- normalize_and_filter(biom_experiment_specific(), input$min_OTU_fraction)
-  })
-  #Report success
-  output$third_check <- renderText({
-    if (!is.null(biom_normalized_filtered())) {
-    output <- "Experiment-specific table has been normalized and filtered..."
-    }
-  })
-
-  # Add mapping information
-  # Table now has experiment-specific samples from the original biom file, all OTUs that pass preprocessing filters, and all metadata
-  biom_table <- reactive({
-    validate(need(!is.null(input$input_otu_table) && !is.null(input$mapping_file), "Please load an OTU table and mapping file."))
-    output <- merge(biom_normalized_filtered(), mapping()[,c(-2,-3)])
-    return(output)
-  })
-
-  # After this processing step, report back how many OTUs survive the preprocessing filters
-  num_otus_preprocess <- reactive({
-    validate(need(!is.null(input$input_otu_table) && !is.null(input$mapping_file), "Please load an OTU table and mapping file."))
-    n_col_biom_table <- ncol(biom_table())
-    n_col_mapping <- ncol(mapping()[, c(-1,-2,-3)])
-    n_otus <- n_col_biom_table - n_col_mapping
-    return(ncol(biom_table()) - ncol(mapping()[,c(-1,-2,-3)]))
-  })
-  output$n_otus_preprocess <- renderText({num_otus_preprocess()})
-
-
-  ##########################################################################################
-  # Define relevant FMT conditions                                                         #
-  ##########################################################################################
-
-  # Define mapping conditions to compare to populate drop-down menus
-  conditions_of_compare <- reactive({
-    if(!is.null(mapping()) && !is.null(input$comparison)){
-      category <- mapping()[[input$comparison]]
-      return(levels(category))
-    } else{return()}
-  })
-
-  # Help select FMT details
-  output$compare_options <- renderUI({
-  selectInput("comparison", "Select comparison category (from mapping file)", names(mapping()), selected = "Compare")
+  output$num_post_fmt_samples <-
+    renderText({
+      text_post_fmt_samples()
     })
-  output$donor <- renderUI({
-    selectInput("donor", "Select donor condition", conditions_of_compare(), selected = conditions_of_compare()[1])
+  
+  # Create an output to toggle quick FMT summary
+  output$data_analyzed <- reactive({
+    return(!is.null(biom_experiment_specific()))
   })
-  output$recipient <- renderUI({
-    selectInput("recipient", "Select pre-transplant recipient condition", conditions_of_compare(), selected = conditions_of_compare()[2])
-  })
-  output$post_fmt <- renderUI({
-    selectInput("post_fmt", "Select post-transplant recipient condition", conditions_of_compare(),selected = conditions_of_compare()[3])
-  })
-
-
-  # Create labels to keep things straight
-  donor <- eventReactive(input$split_into_experiment, {return(input$donor)})
-  recipient <- eventReactive(input$split_into_experiment, {return(input$recipient)})
-  post_fmt <- eventReactive(input$split_into_experiment, {return(input$post_fmt)})
-  output$donor_id <- renderText({donor()})
-  output$recipient_id <- renderText({recipient()})
-  output$post_fmt_id <- renderText({post_fmt()})
-  output$donor_id_taxa <- renderText({donor()})
-  output$recipient_id_taxa <- renderText({recipient()})
-  output$post_fmt_id_taxa <- renderText({post_fmt()})
-  output$test_metric <- renderText({input$comparison_test})
-
-  ##########################################################################################
-  # Produce table of settings to report back what is being studied                         #
-  ##########################################################################################
-
-  # Populate settings table, render it to UI, and allow for download of it
-  settings <- reactive({
-    validate(need(!is.null(input$input_otu_table) && !is.null(input$mapping_file), "Please load an OTU table and mapping file."))
-    Setting <- c(	"Input OTU Table", 						"# OTUs in input table",  
-				 	"Mapping File", 						"Metadata Category to Select FMT Details", 
-					"Donor", 								"# Donor Samples", 
-					"Recipient", 							"# Recipient Samples", 
-					"Post-FMT Recipient", 					"# Post-FMT Recipient Samples", 
-					"Minimum Relative Abundance Filter", 	"# OTUs After Minimum Relative Abundance Filter", 
-					"Fleeting OTU Filter Threshold", 		"# OTUs After Fleeting OTU Filter (Final # OTUs)", 
-					"Comparison Metric", 					"Exclude OTUs Found Only in Post-FMT Samples or Shared")
-    Value <- c(		input$input_otu_table$name, 			num_otus_raw(), 
-					input$mapping_file$name, 				input$comparison, 
-					donor(), 								N_donor_samples(), 
-					recipient(), 							N_recipient_samples(), 
-					post_fmt(), 							N_post_fmt_samples(), 
-					input$min_OTU_fraction, 				num_otus_preprocess(), 
-					input$min_fraction, 					N_otus_after_nonzero_filter(), 
-					input$comparison_test, 					input$remove_OTUs_test_specific)
-    df <- data.frame(Setting, Value)
-    return(df)
-  })
-  output$settings <- renderTable({settings()})
-  output$x0 <- downloadHandler(filename = function() {'settings.csv'}, content = function(con) {
-    write.csv(settings(), con, row.names = FALSE)
-  })
-
-  ##########################################################################################
-  # Start creating tables specific for the selected conditions                             #
-  ##########################################################################################
-
-  # Create tables that are specific for each given condition
-  donor_only_table <- reactive({
-    validate(need(!is.null(input$input_otu_table) && !is.null(input$mapping_file), "Please load an OTU table and mapping file."))
-    table <- biom_table()[biom_table()[,input$comparison] == donor(),]
+  outputOptions(output, 'data_analyzed', suspendWhenHidden = FALSE)
+  
+  # Create table of OTU data only (specific for selected samples)
+  otus_only <- eventReactive(input$go, {
+    merged <- biom_experiment_specific()
+    row.names(merged) <- merged$X.SampleID
+    table <- merged[, grepl("OTU_", names(merged))]
     return(table)
   })
-  recipient_only_table <- reactive({
-    validate(need(!is.null(input$input_otu_table) && !is.null(input$mapping_file), "Please load an OTU table and mapping file."))
-    table <- biom_table()[biom_table()[,input$comparison] == recipient(),]
+  
+  # Create table of metadata only (specific for selected samples)
+  metadata_only <- eventReactive(input$go, {
+    table <-
+      biom_experiment_specific()[, !grepl("OTU_", names(biom_experiment_specific()))]
+    table$X.SampleID <- as.character(table$X.SampleID)
     return(table)
   })
-  post_fmt_only_table <- reactive({
-    validate(need(!is.null(input$input_otu_table) && !is.null(input$mapping_file), "Please load an OTU table and mapping file."))
-    table <- biom_table()[biom_table()[,input$comparison] == post_fmt(),]
-    return(table)
+  
+  ## Normalize and Filter experiment-specific table
+  relative <- eventReactive(input$go, {
+    withProgress(message = '3) Normalizing and Filtering', value = 0.2, {
+      normalized <- otus_only() / rowSums(otus_only())
+      incProgress(0.4)
+      max_otu_fraction <- apply(normalized, 2, max)
+      filtered <-
+        normalized[, max_otu_fraction > input$min_OTU_fraction]
+    })
+    filtered_table_otu_count <<- ncol(filtered)
+    return(filtered)
   })
-
-  # Create a merged table of the given conditions only, and place the column indicating the condition first, send to UI and allow for download
-  full_table <- reactive({
-    if(is.null(donor_only_table()) | is.null(recipient_only_table()) | is.null(post_fmt_only_table()) | is.null(input$comparison)){return()}
-    in_table <- bind_rows(bind_rows(donor_only_table(),recipient_only_table()), post_fmt_only_table())
-    out <- table_reorder_first(in_table, input$comparison)
-    output <- droplevels(out)
+  
+  
+  # Create Output for filtered OTU table OTU count
+  num_otus_relative_filtered <- eventReactive(input$go, {
+    if (is.null(biom_table())) {
+      return()
+    }
+    return(filtered_table_otu_count)
+  })
+  output$num_otus_after_relative_filter <- renderText({
+    return(paste(
+      "# of OTUs after rel. abundance filter:",
+      num_otus_relative_filtered()
+    ))
+  })
+  
+  ## Scale Normalized table
+  scaled <- eventReactive(input$go, {
+    withProgress(message = "4) Scaling Abundances", value = 0.8, {
+      output <- relative() * metadata_only()$biomass_ratio
+    })
     return(output)
   })
-  output$experiment_specific_full_table <- renderDataTable({full_table()}, options = list(lengthMenu = c(50,100,200), pageLength = 50, orderClasses = TRUE))
-  output$x1 <- downloadHandler(filename = function() {
-       'raw_table.csv'
-      }, content = function(con) {write.csv(full_table(), con, row.names = FALSE)})
-
-  ##########################################################################################
-  # Query whether OTUs are reliably present in a sufficient number of samples              #
-  ##########################################################################################
-
-  # Generate tables for each condition with the fraction of samples in which each OTU has non-zero relative abundances, filtered by the slider input fraction
-  donor_nonzero <- reactive({
-    in_table <- nonzero_fraction_getter(donor_only_table())
-    out <- filter_function(in_table, input$min_fraction, donor())
-    return(out)
-  })
-  recipient_nonzero <- reactive({
-    in_table <- nonzero_fraction_getter(recipient_only_table())
-    out <- filter_function(in_table, input$min_fraction, recipient())
-    return(out)
-  })
-  post_fmt_nonzero <- reactive({
-    in_table <- nonzero_fraction_getter(post_fmt_only_table())
-    out <- filter_function(in_table, input$min_fraction, post_fmt())
-    return(out)
-  })
-
-  # Generate merged table with the fraction of samples in which each OTU has non-zero values filtered by the slider input fraction
-  full_nonzero <- reactive({
-    if(is.null(donor_nonzero()) | is.null(recipient_nonzero()) | is.null(post_fmt_nonzero())){return()}
-    out <- bind_rows(bind_rows(donor_nonzero(), recipient_nonzero()), post_fmt_nonzero())
-    return(out)
-  })
-  output$fraction_samples_with_nonzero_values_for_OTUs <- renderDataTable({full_nonzero()}, options = list(lengthMenu = c(50,100,200), pageLength = 50, orderClasses = TRUE))
-  output$x2 <- downloadHandler(filename = function() {
-    'fraction_nonzero.csv'
-  }, content = function(con) {write.csv(full_nonzero(), con, row.names = FALSE)})
-
-  # Get unique OTUs that survive this filter
-  non_overlapping_nonzero <- reactive({
-    if(is.null(donor_nonzero()) | is.null(recipient_nonzero()) | is.null(post_fmt_nonzero())){return()}
-    otus <- as.data.frame(full_nonzero()$OTU)
-    distinct <- distinct(otus)
-    return(distinct)
-  })
-
-  # Create an output to track how many OTUs survive this filter
-  N_otus_after_nonzero_filter <- reactive({
-    validate(need(!is.null(input$input_otu_table) && !is.null(input$mapping_file), "Please load an OTU table and mapping file."))
-    return(nrow(non_overlapping_nonzero()))
-  })
-  output$num_otus_after_nonzero_filter <- renderText({N_otus_after_nonzero_filter()})
-
-  ##########################################################################################
-  # Use logic joining of these OTUs to define unique and shared OTUs                       #
-  ##########################################################################################
-
-  # Produce the tables of OTUs that are unique for each condition
-  donor_unique <- reactive({
-    out <- anti_join(donor_nonzero(), recipient_nonzero(), by = "OTU")
-    return(out)
-  })
-  output$donor_unique <- renderDataTable({donor_unique()},options = list(lengthMenu = c(50,100,200), pageLength = 50, orderClasses = TRUE))
-  observeEvent(input$showhide_donor, {toggle("donor_unique")})
   
-  recipient_unique <- reactive({
-    out <- anti_join(recipient_nonzero(), donor_nonzero(), by = "OTU")
-    return(out)
-  })
-  output$recipient_unique <- renderDataTable({recipient_unique()},options = list(lengthMenu = c(50,100,200), pageLength = 50, orderClasses = TRUE))
-  observeEvent(input$showhide_recipient, {toggle("recipient_unique")})
-  
-  post_fmt_unique <- reactive({
-    out <- anti_join(anti_join(post_fmt_nonzero(), donor_nonzero(), by = "OTU"), recipient_nonzero(), by = "OTU")
-    return(out)
-  })
-  output$post_fmt_unique <- renderDataTable({post_fmt_unique()},options = list(lengthMenu = c(50,100,200), pageLength = 50, orderClasses = TRUE))
-  observeEvent(input$showhide_post_fmt, {toggle("post_fmt_unique")})
-  
-  post_fmt_nonunique <- reactive({
-    a <- semi_join(post_fmt_nonzero(), donor_unique(), by = "OTU")
-    b <- semi_join(post_fmt_nonzero(), recipient_unique(), by = "OTU")
-    out <- bind_rows(a, b)
-    return(out)
-  })
-  shared_pre <- reactive({
-    output <- semi_join(donor_nonzero(), recipient_nonzero(), by = "OTU")
-    return(output)
-  })
-  shared_throughout <- reactive({
-    output <- semi_join(shared_pre(), post_fmt_nonzero(), by = "OTU")
-	output$Specificity <- "Shared"
-    return(output)
-  })
-  output$shared_throughout <- renderDataTable({shared_throughout()},options = list(lengthMenu = c(50,100,200), pageLength = 50, orderClasses = TRUE))
-  observeEvent(input$showhide_shared, {toggle("shared_throughout")})
-
-  post_fmt_selected <- reactive({
-    if(input$remove_OTUs_test_specific) {
-      return(post_fmt_nonunique())
-    }
-    else {
-      return(post_fmt_nonzero())
-    }
-  })
-
-  # Return numbers of OTUs unique to each condition
-  N_Donor <- reactive({
-    if (is.null(donor_unique())) {return()}
-    return(nrow(donor_unique()))})
-
-  output$N_Donor <- renderUI({
-	  HTML(paste("<strong>N", tags$sub("Donor"), ":</strong>", " ", N_Donor(), sep = ""))
-  })
-
-  N_Recipient <- reactive({
-    if (is.null(recipient_unique())) {return()}
-    return(nrow(recipient_unique()))})
-  output$N_Recipient <- renderUI({
-  	HTML(paste("<strong>N", tags$sub("Recipient"), ":</strong>", " ", N_Recipient(), sep = ""))
-  })
-
-  N_P_Unique <- reactive({
-    if (is.null(post_fmt_unique())) {return()}
-    return(nrow(post_fmt_unique()))})
-  output$N_P_Unique <- renderUI({
-  HTML(paste("<strong>N", tags$sub("Post-FMT (Unique)"), ":</strong>", " ", N_P_Unique(), sep = ""))
-  })
-
-  N_otus_nonunique_post_fmt <- reactive({
-    if (is.null(post_fmt_nonqunique())) {return()}
-    return(nrow(post_fmt_nonunique()))})
-  output$num_otus_nonunique_post_fmt <- renderText({N_otus_nonunique_post_fmt()})
-
-  N_otus_shared_pre <- reactive({
-    if (is.null(shared_pre())) {return()}
-    return(nrow(shared_pre()))})
-  output$num_otus_shared_pre <- renderText({N_otus_shared_pre()})
-
-  N_P_Shared <- reactive({
-    if (is.null(shared_throughout())) {return()}
-    return(nrow(shared_throughout()))})
-  output$N_P_Shared <- renderUI({
-  	HTML(paste("<strong>N", tags$sub("Post-FMT (Shared)"), ":</strong>", " ", N_P_Shared(), sep = ""))
-  })
-
-  N_otus_post_fmt_nonzero <- reactive({
-    if (is.null(post_fmt_nonzero())) {return()}
-    return(nrow(post_fmt_nonzero()))
-  })
-  output$num_otus_post_fmt_nonzero <- renderText({N_otus_post_fmt_nonzero()})
-
-  N_P_Total <- reactive({
-    if (is.null(post_fmt_selected())) {return()}
-    return(nrow(post_fmt_selected()))
-  })
-  output$N_P_Total <- renderUI({
-  	HTML(paste("<strong>N", tags$sub("Post-FMT (Total)"), ":</strong>", " ", N_P_Total(), sep = ""))
-  })
-
-  output$remove_OTUs <- renderText({
-    if (input$remove_OTUs_test_specific){
-      "Yes"
-    }
-    else {
-      "No"
-    }
-  })
-
-  #Create a combined table of OTUs unique for the different conditions, including nonzero fraction. Send to UI and allow download
-  OTUs_unique_combined <- reactive({
-  # Merge these tables together
-    if (input$remove_OTUs_test_specific) {
-      merged <- bind_rows(donor_unique(), recipient_unique())
+  ### Taxonomy Addition/Compression
+  # Melt data to add taxonomy
+  abundance_selected_melted <- eventReactive(input$go, {
+    if (input$abundance_type == 'absolute') {
+      scaled_only <- scaled()
+      scaled_only$X.SampleID <- row.names(scaled_only)
+      melted <-
+        melt(
+          data = scaled_only,
+          id.vars = 'X.SampleID',
+          measure.vars = colnames(scaled_only)[-length(colnames(scaled_only))]
+        )
+      # QC to elimnate errors and spurious negative abundance (spot-checked, this occurs only once from all samples, and is minimally negative anyways...)
+      if (length(melted[melted$value < 0, ]$value) > 0) {
+        melted[melted$value < 0, ]$value <- 0
+      }
     } else {
-    merged <- bind_rows(bind_rows(donor_unique(), recipient_unique()), post_fmt_unique())
+      relative_only <- relative()
+      relative_only$X.SampleID <- row.names(relative_only)
+      melted <-
+        melt(
+          data = relative_only,
+          id.vars = 'X.SampleID',
+          measure.vars = colnames(relative_only)[-length(colnames(relative_only))]
+        )
     }
-    output <- merged %>% arrange(Specificity)
-    return(output)
-  })
-  output$otus_unique_to_condition <- renderDataTable({OTUs_unique_combined()}, options = list(lengthMenu = c(50,100,200), pageLength = 50, orderClasses = TRUE))
-  output$x3 <- downloadHandler(filename = function() {
-    'otus_unique_to_each_condition_combined.csv'
-  }, content = function(con) {write.csv(OTUs_unique_combined(), con, row.names = FALSE)})
-
-  ##########################################################################################
-  # Compute mean or median OTU relative abundance in all samples of a condition            #
-  ##########################################################################################
-
-  # Generate tables with the mean or median OTU relative abundance samples in a given condition. This will be calculated for ALL OTUs, not just those specific for each condition
-  donor_relative_abundance <- reactive({
-    output <- metric_function(donor_only_table(), "Donor", input$comparison_test)
-    return(output)
-  })
-  recipient_relative_abundance <- reactive({
-    output <- metric_function(recipient_only_table(), "Recipient", input$comparison_test)
-    return(output)
-  })
-  post_fmt_relative_abundance <- reactive({
-    output <- metric_function(post_fmt_only_table(), "Post_FMT", input$comparison_test)
-    return(output)
-  })
-
-  # Combine the tables of mean or median OTU relative abundances, and filter to only display the combined unique OTUs (+/- the unique to post-fmt)
-  full_relative_abundance_unique <- reactive({
-    mid <- full_join(full_join(donor_relative_abundance()[,-3], recipient_relative_abundance()[,-3], by = "OTU"),  post_fmt_relative_abundance()[,-3], by = "OTU")
-    output <- inner_join(OTUs_unique_combined(), mid, by = "OTU")
-    return(output)
-  })
-
-  ##########################################################################################
-  # Compute differences mean or median OTU relative abundances                             #
-  ##########################################################################################
-
-  # Compute pairwise differences of the relative abundances
-  full_relative_abundance_unique_plus_differences <- reactive({
-    output <- full_relative_abundance_unique() %>% mutate(Donor_VS_Recipient = abs(Donor-Recipient)) %>% mutate(Donor_VS_Post_FMT = abs(Donor-Post_FMT)) %>% mutate(Recipient_VS_Post_FMT = abs(Recipient-Post_FMT))
-    return(output)
-  })
-
-  # Filter this table to only display OTUs that have a minimum differences of relative abundance as given by slider input. Push table to UI and allow download
-  filtered_relative_abundance_unique_plus_differences <- reactive({
-    output <- filter_by_metric(full_relative_abundance_unique_plus_differences(), input$min_diff, list("Donor_VS_Recipient", "Donor_VS_Post_FMT", "Recipient_VS_Post_FMT"))
-    return(output)
-  })
-  output$filtered_relative_abundance_of_unique_OTUs_plus_differences <- renderDataTable({filtered_relative_abundance_unique_plus_differences()}, options = list(lengthMenu = c(50,100,200), pageLength = 50, orderClasses = TRUE))
-  output$x5 <- downloadHandler(filename = function() {
-    'filtered_relative_abundance_unique_plus_differences.csv'
-  }, content = function(con) {
-    write.csv(filtered_relative_abundance_unique_plus_differences(), con, row.names = FALSE)
-  })
-
-  # Pull number of OTUs that remain after these steps
-  N_otus_after_abundance_difference_filter <- reactive({
-    validate(need(!is.null(input$input_otu_table) && !is.null(input$mapping_file), "Please load an OTU table and mapping file."))
-    return(nrow(filtered_relative_abundance_unique_plus_differences()))
-  })
-  output$num_otus_after_abundance_difference_filter <- renderText({N_otus_after_abundance_difference_filter()})
-
-
-  ##########################################################################################
-  # Compute Relevant FMT metrics by OTU                                                    #
-  ##########################################################################################
-
-  # P_Donor_table, the table of OTUs in the post-transplant samples that came from the donor.
-  P_Donor_table <- reactive({
-    validate(need(!is.null(input$input_otu_table) && !is.null(input$mapping_file), "Please load an OTU table and mapping file."))
-      output <- semi_join(post_fmt_selected(), donor_unique(), by = "OTU")
-    return(output)
-  })
-  output$P_Donor_table <- renderDataTable({P_Donor_table()})
-
-  # N_P_Donor, the number of OTUs in the post-transplant samples that came from the donor
-  N_P_Donor <- reactive({
-    if (is.null(P_Donor_table())) {return()}
-    return(nrow(P_Donor_table()))
-  })
-  output$N_P_Donor <- renderUI({
-	  HTML(paste("<strong>N", tags$sub("Donor| Post-FMT"), ":</strong>", " ",N_P_Donor(), sep = ""))
-  })
-
-  # D_Engraft the proportion of donor OTUs that made it into the post-transplant samples
-  D_Engraft <- reactive({
-    if (is.null(donor_unique())) {return()}
-	fraction <- N_P_Donor()/N_Donor()
-    return(fraction)
-  })
-  output$D_Engraft <- renderUI({
-	  	  HTML(paste("<strong>D", tags$sub("Engraft"), ":</strong>", " ", round(D_Engraft(),3), sep = ""))
-  })
-
-  # P_Donor, the proportion of OTUs in post-transplant samples that came from the donor
-  P_Donor <- reactive({
-    if (is.null(post_fmt_selected())) {return()}
-    fraction <- N_P_Donor()/N_P_Total()
-    return(fraction)
-  })
-  output$P_Donor <- renderUI({
-	  	  HTML(paste("<strong>P", tags$sub("Donor"), ":</strong>", " ", round(P_Donor(),3), sep = ""))
-  })
-
-  # P_Recipient_table, the table of OTUs in the post-transplant samples that came from the recipient
-  P_Recipient_table <- reactive({
-    validate(need(!is.null(input$input_otu_table) && !is.null(input$mapping_file), "Please load an OTU table and mapping file."))
-    output <- semi_join(post_fmt_selected(), recipient_unique(), by = "OTU")
-    return(output)
-  })
-  output$P_Recipient_table <- renderDataTable({P_Recipient_table()})
-
-  # P_Recipient, the number of OTUs in the post-transplant samples that came from the recipient
-  N_P_Recipient <- reactive({
-    if (is.null(P_Recipient_table())) {return()}
-    return(nrow(P_Recipient_table()))
-  })
-  output$N_P_Recipient <- renderUI({
-	  	  HTML(paste("<strong>N", tags$sub("Recipient | Post-FMT"), ":</strong>", " ", N_P_Recipient(), sep = ""))
-  })
-
-  # R_Persist the proportion of recipient OTUs that remained in the post-transplant samples
-  R_Persist <- reactive({
-    if (is.null(recipient_unique())) {return()}
-    fraction <- N_P_Recipient()/N_Recipient()
-    return(fraction)
-  })
-  output$R_Persist <- renderUI({
-	  	  HTML(paste("<strong>R", tags$sub("Persist"), ":</strong>", " ", round(R_Persist(),3), sep = ""))
-  })
-
-  # P_Recipient, the proportion of OTUs in post-transplant samples that came from the recipient
-  P_Recipient <- reactive({
-    if (is.null(post_fmt_selected())) {return()}
-    fraction <- N_P_Recipient()/N_P_Total()
-    return(fraction)
-  })
-  output$P_Recipient <- renderUI({
-	  	  HTML(paste("<strong>P", tags$sub("Recipient"), ":</strong>", " ", round(P_Recipient(),3), sep = ""))
+    names(melted)[names(melted) == 'variable'] <- 'OTU_ID'
+    melted$OTU_ID <- as.character(melted$OTU_ID)
+    return(melted)
   })
   
-  # P_Shared , proporiton of OTUs in post-transplant samples that are shared
-  P_Shared <- reactive({
-	  if (is.null(post_fmt_selected())) {return()}
-	  fraction <- N_P_Shared()/N_P_Total()
-	  return(fraction)  	
-  })
-
-  output$P_Shared <- renderUI({
-	  	  HTML(paste("<strong>P", tags$sub("Shared"), ":</strong>", " ", round(P_Shared(),3), sep = ""))
+  
+  # Add Taxonomy and collapse upon common taxa
+  
+  phylogeny <-
+    c("Kingdom",
+      "Phylum",
+      "Class",
+      "Order",
+      "Family",
+      "Genus",
+      "Species")
+  
+  abundance_selected_taxonomy <- eventReactive(input$go, {
+    withProgress(message = 'Collapsing by Taxonomy', value = 0.5, {
+      tax_added <-
+        dplyr::inner_join(abundance_selected_melted(), taxonomy(), by = "OTU_ID")
+      incProgress(0.3)
+      grouped <- dplyr::group_by(tax_added, X.SampleID, Taxon)
+      collapsed <- dplyr::summarize(grouped, abundance = sum(value))
+      split_tax <-
+        tidyr::separate(
+          collapsed,
+          Taxon,
+          phylogeny,
+          sep = ";.__",
+          remove = F,
+          fill = 'right'
+        )
+      split_tax$Kingdom <- "Bacteria"
+      split_tax$Abundance_Type <- input$abundance_type
+    })
+    return(split_tax)
   })
   
-  # P_Unique, proporiton of OTUs in post-transplant samples that are unique
-  P_Unique <- reactive({
-	  if(is.null(post_fmt_selected())) {return()}
-	  fraction <- N_P_Unique()/N_P_Total()
-	  return(fraction)
+  
+  # Create a semi-static variable to copture current abundance type
+  abundance_type <- eventReactive(input$go, {
+    return(input$abundance_type)
   })
-  output$P_Unique <- renderUI({
-	  	  HTML(paste("<strong>P", tags$sub("Unique"), ":</strong>", " ", round(P_Unique(),3), sep = ""))
-  })
-
-
-  ##########################################################################################
-  # Include these metrics into a table for download                                        #
-  ##########################################################################################
-
-  # Populate table for Metrics
-  metric_table <- reactive({
-    validate(need(!is.null(input$input_otu_table) && !is.null(input$mapping_file), "Please load an OTU table and mapping file."))
-    Item <- c(   "Input OTU Table", 		"# OTUs in original table",
-                 "Mapping File", 			"Metadata Category",
-                 "DonorID", 				"N_Donor_Samples",
-				 "RecipientID",				"N_Recipient_Samples", 
-				 "Post_FMT_ID", 			"N_Post_FMT_Samples", 
-				 "Rel_Abundance_Filter", 	"N_OTUs_Rel_Abundance_Filtered",
-                 "Fleeting_OTUs_Filter", 	"N_OTUs_Fleeting_Filtered", 
-				 "Comparison_Metric",       "Exclude_Unique_And_Shared",
-                 "N_Donor", 				"N_Recipient", 
-				 "N_P_Total",             	"N_P_Unique", 
-				 "N_P_Shared",              "N_P_Donor", 
-				 "D_Engraft", 				"P_Donor",
-                 "N_P_Recipient", 			"R_Persist", 
-				 "P_Recipient", 			"P_Shared", 
-				 "P_Unique",				"Taxonomy_Added")
-				 
-    Value <- c(input$input_otu_table$name, 	num_otus_raw(),
-               input$mapping_file$name, 	input$comparison,
-               donor(), 					N_donor_samples(), 
-			   recipient(),		 			N_recipient_samples(), 
-			   post_fmt(), 					N_post_fmt_samples(), 
-			   input$min_OTU_fraction, 		num_otus_preprocess(),
-               input$min_fraction, 			N_otus_after_nonzero_filter(), 
-			   input$comparison_test,      	input$remove_OTUs_test_specific,
-               N_Donor(), 					N_Recipient(), 
-			   N_P_Total(),  				N_P_Unique(), 
-			   N_P_Shared(),  				N_P_Donor(), 
-			   D_Engraft(), 				P_Donor(),
-               N_P_Recipient(), 			R_Persist(), 
-			   P_Recipient(),				P_Shared(),
-			   P_Unique(),					"No")
-    df <- data.frame(Item, Value)
-    return(df)
-  })
-
-  output$metrics <- renderTable({metric_table()})
-  output$xmetrics <- downloadHandler(filename = function() {
-    'transplant_metric_summary.csv'
-  }, content = function(con) {
-    write.csv(metric_table(), con, row.names = FALSE)
-  })
-
-  ##########################################################################################
-  #                                                                                        #
-  # The following generates a visualization of the FMT metrics                             #
-  #                                                                                        #
-  ##########################################################################################
-
-  metric_vis <- reactive({
-    if (input$remove_OTUs_test_specific) {
-      N_unique_vis <- 0
-      N_shared_vis <- 0
+  
+  # Create a table of per-sample-per-taxa abundances at the selected depth
+  sample_abundance_by_depth <- reactive({
+    i <- grep(input$selected_depth, phylogeny)
+    label <-
+      paste(phylogeny[i - 1], input$selected_depth, sep = ".")
+    dots <- lapply(phylogeny[1:i], as.symbol)
+    grouped1 <-
+      dplyr::group_by(abundance_selected_taxonomy(), X.SampleID)
+    grouped2 <- dplyr::group_by_(grouped1, .dots = dots, add = T)
+    table <-
+      dplyr::summarize(grouped2, abundance = sum(abundance))
+    if (i > 2) {
+      table$short_label <-
+        paste(table[[phylogeny[i - 2]]], table[[phylogeny[i - 1]]], table[[phylogeny[i]]], sep = ".")
+      table <-
+        tidyr::unite_(table,
+                      'long_label',
+                      phylogeny[1:i],
+                      sep = ".",
+                      remove = F)
+    } else if (i > 1) {
+      table$short_label <-
+        paste(table[[phylogeny[i - 1]]], table[[phylogeny[i]]], sep = ".")
+      table <-
+        tidyr::unite_(table,
+                      'long_label',
+                      phylogeny[1:i],
+                      sep = ".",
+                      remove = F)
+    } else {
+      table$short_label <- table[[phylogeny[i]]]
+      table$long_label <- table[[phylogeny[i]]]
     }
-    else {
-      N_unique_vis <- N_P_Unique()
-      N_shared_vis <- N_P_Shared()
-    }
-    p <- visualize_metrics(N_Donor(), N_Recipient(), N_P_Total(), N_P_Donor(), N_P_Recipient(), N_unique_vis, N_shared_vis, post_fmt())
-    return(p)
-
+    table$Abundance_Type <- abundance_type()
+    table$Depth <- phylogeny[i]
+    return(table)
   })
-  output$metric_visualization <- renderPlot({metric_vis()})
-  output$metric_vis_download = downloadHandler(filename = 'metric_vis.png', content = function(file) {
-    device <- function(..., width, height) {
-      grDevices::png(..., width = 2*width, height = height,
-                     res = 500, units = "in")
-    }
-    ggsave(file, plot = metric_vis(), device = device)
-  })
-
-
-  ##########################################################################################
-  #                                                                                        #
-  # The following generates a PCOA plot based on a given distance metric                   #
-  #                                                                                        #
-  ##########################################################################################
-
-  samples_x_unique_otus <- reactive({
-    output <- full_table()[,full_relative_abundance_unique()$OTU]
-    output$X.SampleID <- full_table()$X.SampleID
-    output$Compare <- full_table()$Compare
-    output2 <- table_reorder_first(output, "X.SampleID")
-    output3 <-table_reorder_first(output2, "Compare")
-    output4 <- droplevels(output3)
-    return(output4)
-  })
-
-  distance_metric_table <- reactive({
-    otus_only <- samples_x_unique_otus()[,c(-1,-2)]
-    dm <- as.matrix(dist(otus_only, diag = TRUE, upper = TRUE, method = input$distance_method))
-    row.names(dm) <- samples_x_unique_otus()$X.SampleID
-    colnames(dm) <- samples_x_unique_otus()$X.SampleID
-    return(dm)
-  })
-
-  pc_table <- reactive({
-    pc <- cmdscale(distance_metric_table(), k = nrow(samples_x_unique_otus())-1, eig = TRUE, add = TRUE)
-    return(pc)
-  })
-
-  pc_values_plus_metadata <- reactive({
-    mid <- bind_cols(as.data.frame(pc_table()$points[,1]), as.data.frame(pc_table()$points[,2]), as.data.frame(pc_table()$points[,3]), as.data.frame(pc_table()$points[,4]), as.data.frame(pc_table()$points[,5]))
-    colnames(mid) <- c("PC1", "PC2", "PC3", "PC4", "PC5")
-    mid$X.SampleID <- as.character(samples_x_unique_otus()$X.SampleID)
-    map <- mapping()[,c(-2,-3)]
-    map$X.SampleID <- as.character(map$X.SampleID)
-    pre_output <- left_join(mid, map, by = "X.SampleID")
-    output <- droplevels.data.frame(pre_output)
+  
+  
+  
+  # Create a compact version of this table that contains as many rows as variables, and columns with metadata + taxa abundances
+  compact_sample_abundance_by_depth <- reactive({
+    compact_table <-
+      dcast(
+        sample_abundance_by_depth(),
+        X.SampleID + Depth + Abundance_Type ~ long_label,
+        value.var = 'abundance'
+      )
+    output <-
+      dplyr::left_join(metadata_only(), compact_table, by = "X.SampleID")
     return(output)
   })
-
-  output$pc1 <- renderText({
-    eig <- pc_table()$eig
-    return(percent(eig[1]/sum(eig)))
+  
+  # Create label switch for OTUs vs Taxa
+  OTU_taxa_label <- reactive({
+    if (input$toggle_taxonomy) {
+      output <- "Taxa"
+    } else {
+      output <- "OTUs"
+    }
+    return(output)
   })
-  output$pc2 <- renderText({
-    eig <- pc_table()$eig
-    return(percent(eig[2]/sum(eig)))
+  
+  abundance_selected_metadata_added <- eventReactive(input$go, {
+    if (input$abundance_type == 'absolute') {
+      scaled_only <- scaled()
+      scaled_only$X.SampleID <- as.character(row.names(scaled_only))
+      output <-
+        dplyr::left_join(metadata_only(), scaled_only, by = 'X.SampleID')
+    } else {
+      relative_only <- relative()
+      relative_only$X.SampleID <-
+        as.character(row.names(relative_only))
+      output <-
+        dplyr::left_join(metadata_only(), relative_only, by = "X.SampleID")
+    }
+    if (input$toggle_taxonomy) {
+      return(compact_sample_abundance_by_depth())
+    } else {
+      return(output)
+    }
   })
-  output$pc3 <- renderText({
-    eig <- pc_table()$eig
-    return(percent(eig[3]/sum(eig)))
+  
+  
+  detail_text <- eventReactive(input$go, {
+    if (input$toggle_taxonomy) {
+      output <- paste(input$selected_depth,
+                      "-Level Analysis (Taxonomy Added)",
+                      sep = "")
+    } else {
+      output <- "OTU-based Analysis (Taxonomy NOT Added)"
+    }
+    return(output)
   })
-  output$pc4 <- renderText({
-    eig <- pc_table()$eig
-    return(percent(eig[4]/sum(eig)))
+  output$other_details <- renderText({
+    detail_text()
   })
-  output$pc5 <- renderText({
-    eig <- pc_table()$eig
-    return(percent(eig[5]/sum(eig)))
+  
+  ## FEAT metrics
+  # OTUs specific to Donor, in minimum fraction of samples
+  abundance_selected_donor_specific <- eventReactive(input$go, {
+    donor_only <-
+      abundance_selected_metadata_added()[abundance_selected_metadata_added()[, input$comparison] == donor(),]
+    if (input$toggle_taxonomy) {
+      table <-
+        as.data.frame(t(summarise_each(donor_only[, grepl("Bacteria", names(donor_only))], funs(
+          sum(. > 0) / length(.)
+        ))))
+      table$Taxon <- row.names(table)
+      colnames(table) <- c('Fraction', 'Taxon')
+      output <-
+        dplyr::filter(table_reorder_first(table, 'Taxon'),
+                      Fraction >= input$min_fraction)
+      output$Specificity <- donor()
+    } else {
+      table <-
+        as.data.frame(t(summarise_each(donor_only[, grepl("OTU_", names(donor_only))], funs(
+          sum(. > 0) / length(.)
+        ))))
+      table$OTU <- row.names(table)
+      colnames(table) <- c('Fraction', 'OTU_ID')
+      output <-
+        dplyr::filter(table_reorder_first(table, 'OTU_ID'),
+                      Fraction >= input$min_fraction)
+      output$Specificity <- donor()
+    }
+    return(output)
   })
-
-  output$plot_x <- renderUI({
-    selectInput('plot_x', 'X', names(pc_values_plus_metadata()))
+  output$abundance_selected_taxonomy <-
+    renderDataTable({
+      abundance_selected_donor_specific()
+    })
+  
+  # OTUs specific to Recipient, in minimum fraction of samples
+  abundance_selected_recipient_specific <- eventReactive(input$go, {
+    recipient_only <-
+      abundance_selected_metadata_added()[abundance_selected_metadata_added()[, input$comparison] == recipient(),]
+    if (input$toggle_taxonomy) {
+      table <-
+        as.data.frame(t(summarise_each(
+          recipient_only[, grepl("Bacteria", names(recipient_only))], funs(sum(. > 0) / length(.))
+        )))
+      table$Taxon <- row.names(table)
+      colnames(table) <- c('Fraction', 'Taxon')
+      output <-
+        dplyr::filter(table_reorder_first(table, 'Taxon'),
+                      Fraction >= input$min_fraction)
+      output$Specificity <- recipient()
+    } else {
+      table <-
+        as.data.frame(t(summarise_each(
+          recipient_only[, grepl("OTU_", names(recipient_only))], funs(sum(. > 0) / length(.))
+        )))
+      table$OTU <- row.names(table)
+      colnames(table) <- c('Fraction', 'OTU_ID')
+      output <-
+        dplyr::filter(table_reorder_first(table, 'OTU_ID'),
+                      Fraction >= input$min_fraction)
+      output$Specificity <- recipient()
+    }
+    return(output)
   })
-  output$plot_y <- renderUI({
-    selectInput('plot_y', 'Y', names(pc_values_plus_metadata()), names(pc_values_plus_metadata())[[2]])
+  
+  # OTUs specific to Post-FMT, in minimum fraction of samples
+  abundance_selected_post_fmt_specific <- eventReactive(input$go, {
+    post_fmt_only <-
+      abundance_selected_metadata_added()[abundance_selected_metadata_added()[, input$comparison] == post_fmt(),]
+    if (input$toggle_taxonomy) {
+      table <-
+        as.data.frame(t(summarise_each(
+          post_fmt_only[, grepl("Bacteria", names(post_fmt_only))], funs(sum(. > 0) / length(.))
+        )))
+      table$Taxon <- row.names(table)
+      colnames(table) <- c('Fraction', 'Taxon')
+      output <-
+        dplyr::filter(table_reorder_first(table, 'Taxon'),
+                      Fraction >= input$min_fraction)
+      output$Specificity <- post_fmt()
+    } else {
+      table <-
+        as.data.frame(t(summarise_each(
+          post_fmt_only[, grepl("OTU_", names(post_fmt_only))], funs(sum(. > 0) / length(.))
+        )))
+      table$OTU <- row.names(table)
+      colnames(table) <- c('Fraction', 'OTU_ID')
+      output <-
+        dplyr::filter(table_reorder_first(table, 'OTU_ID'),
+                      Fraction >= input$min_fraction)
+      output$Specificity <- post_fmt()
+    }
+    return(output)
   })
-  output$plot_color_by <- renderUI({
-    selectInput('plot_color_by', 'Color By', c('None', names(pc_values_plus_metadata())), selected = input$comparison)
+  
+  # Full table of OTUs that are specific and non-fleeting
+  full_nonfleeting <- eventReactive(input$go, {
+    if (is.null(abundance_selected_donor_specific()) |
+        is.null(abundance_selected_recipient_specific()) |
+        is.null(abundance_selected_post_fmt_specific())) {
+      return()
+    }
+    withProgress(message = paste('Filtering Fleeting', OTU_taxa_label()),
+                 value = 0.5,
+                 {
+                   out <-
+                     bind_rows(
+                       bind_rows(
+                         abundance_selected_donor_specific(),
+                         abundance_selected_recipient_specific()
+                       ),
+                       abundance_selected_post_fmt_specific()
+                     )
+                 })
+    return(out)
   })
-  output$plot_facet_row <- renderUI({
-    selectInput('facet_row', 'Facet Row', c(None='.', names(pc_values_plus_metadata())))
+  
+  # List of distinct OTUs that are specific and non-fleeting (i.e. relevant OTUs)
+  relevant_OTUs <- eventReactive(input$go, {
+    if (is.null(abundance_selected_donor_specific()) |
+        is.null(abundance_selected_recipient_specific()) |
+        is.null(abundance_selected_post_fmt_specific())) {
+      return()
+    }
+    if (input$toggle_taxonomy) {
+      otus <- full_nonfleeting()$Taxon
+    } else {
+      otus <- full_nonfleeting()$OTU
+    }
+    return(unique(otus))
   })
-  output$plot_facet_col <- renderUI({
-  selectInput('facet_col', 'Facet Column', c(None='.', names(pc_values_plus_metadata())))
+  # Create an output to track how many OTUs survive this filter
+  N_otus_after_fleeting_filter <- eventReactive(input$go, {
+    return(length(relevant_OTUs()))
   })
-
-  plot_inputs <- reactive({
-    if(!is.null(input$plot_x) && !is.null(input$plot_y)){
-      output <- paste(input$distance_method, input$plot_x, input$plot_y, input$jitter, input$smooth, input$plot_color_by, input$facet_row, input$facet_col, input$point_size)
+  n_otus_fleeting_filter_text <- eventReactive(input$go, {
+    output <- paste(
+      '# of',
+      OTU_taxa_label(),
+      'after fleeting filter:',
+      N_otus_after_fleeting_filter()
+    )
+    return(output)
+  })
+  output$num_otus_after_fleeting_filter <- renderText({
+    return(n_otus_fleeting_filter_text())
+  })
+  
+  ## Create Table of OTUs unique  to Donor
+  donor_unique <- eventReactive(input$go, {
+    if (input$toggle_taxonomy) {
+      out <-
+        dplyr::anti_join(
+          abundance_selected_donor_specific(),
+          abundance_selected_recipient_specific(),
+          by = "Taxon"
+        )
+    } else {
+      out <-
+        dplyr::anti_join(
+          abundance_selected_donor_specific(),
+          abundance_selected_recipient_specific(),
+          by = "OTU_ID"
+        )
+    }
+    return(out)
+  })
+  
+  
+  ## Create Table of OTUs unique  to Recipient
+  recipient_unique <- eventReactive(input$go, {
+    if (input$toggle_taxonomy) {
+      out <-
+        dplyr::anti_join(
+          abundance_selected_recipient_specific(),
+          abundance_selected_donor_specific(),
+          by = "Taxon"
+        )
+    } else {
+      out <-
+        dplyr::anti_join(
+          abundance_selected_recipient_specific(),
+          abundance_selected_donor_specific(),
+          by = "OTU_ID"
+        )
+    }
+    return(out)
+  })
+  ## Create Table of OTUs unique to Post-FMT (should be small)
+  post_fmt_unique <- eventReactive(input$go, {
+    if (input$toggle_taxonomy) {
+      out <-
+        dplyr::anti_join(
+          dplyr::anti_join(
+            abundance_selected_post_fmt_specific(),
+            abundance_selected_donor_specific(),
+            by = "Taxon"
+          ),
+          abundance_selected_recipient_specific(),
+          by = "Taxon"
+        )
+    } else {
+      out <-
+        dplyr::anti_join(
+          dplyr::anti_join(
+            abundance_selected_post_fmt_specific(),
+            abundance_selected_donor_specific(),
+            by = "OTU_ID"
+          ),
+          abundance_selected_recipient_specific(),
+          by = "OTU_ID"
+        )
+    }
+    return(out)
+  })
+  ## Create Table of OTUs shared before transplant
+  shared_pre <- eventReactive(input$go, {
+    if (input$toggle_taxonomy) {
+      out <-
+        dplyr::semi_join(
+          abundance_selected_donor_specific(),
+          abundance_selected_recipient_specific(),
+          by = "Taxon"
+        )
+    } else {
+      out <-
+        dplyr::semi_join(
+          abundance_selected_donor_specific(),
+          abundance_selected_recipient_specific(),
+          by = "OTU_ID"
+        )
+    }
+    return(out)
+  })
+  ## Create Table of OTUs Shared throughout
+  shared_throughout <- eventReactive(input$go, {
+    if (input$toggle_taxonomy) {
+      output <-
+        dplyr::semi_join(shared_pre(),
+                         abundance_selected_post_fmt_specific(),
+                         by = "Taxon")
+      output$Specificity <- "Shared"
+    } else {
+      output <-
+        dplyr::semi_join(shared_pre(),
+                         abundance_selected_post_fmt_specific(),
+                         by = "OTU_ID")
+      output$Specificity <- "Shared"
+    }
+    return(output)
+  })
+  
+  # Create Table of OTUs shared but lost
+  shared_lost <- eventReactive(input$go, {
+    if (input$toggle_taxonomy) {
+      output <-
+        dplyr::anti_join(shared_pre(),
+                         abundance_selected_post_fmt_specific(),
+                         by = "Taxon")
+    } else {
+      output <-
+        dplyr::anti_join(shared_pre(),
+                         abundance_selected_post_fmt_specific(),
+                         by = "OTU_ID")
+    }
+    if (nrow(output) > 0) {
+      output$Specificity <- "Shared_lost"
     }
     else {
       output <- NULL
@@ -766,516 +801,1139 @@ shinyServer(function(input, output, session) {
     return(output)
   })
   
-  spree_plot <- eventReactive(plot_inputs() ,{
-	  x_spree <- paste("PC", as.character(seq(1, length(pc_table()$eig))), sep = " ")
-	  y_spree <- (pc_table()$eig/sum(pc_table()$eig))*100
-	  
-	  spree_data <- data.frame(x_spree,y_spree)
-	  
-	  p <- ggplot(data = spree_data[1:5,], aes(x = x_spree, y = y_spree)) + geom_bar(stat = 'identity') + labs(x = "", y = "Percent Explained") + theme_classic() + coord_cartesian(ylim = c(0,100)) + theme(axis.text=element_text(size=14, face="bold"), axis.title=element_text(size=16,face="bold"), axis.line.x=element_line(size=1, color = 'black'), axis.line.y=element_line(size=1, color = 'black'),  axis.ticks=element_line(size=1.5)) + scale_y_continuous(expand = c(0, 0))
-	  return(p)
+  ## Return numbers of OTUs unique to each condition
+  # Number donor unique
+  N_Donor <- eventReactive(input$go, {
+    if (is.null(donor_unique())) {
+      return()
+    }
+    return(nrow(donor_unique()))
   })
-  output$spree_plot <- renderPlot({spree_plot()})
   
-  plot_item <- eventReactive(plot_inputs(),{
-
+  output$N_Donor <- renderUI({
+    HTML(paste(
+      "<strong>N",
+      tags$sub("Donor"),
+      ":</strong>",
+      " ",
+      N_Donor(),
+      sep = ""
+    ))
+  })
+  
+  # Number recipient unique
+  N_Recipient <- eventReactive(input$go, {
+    if (is.null(recipient_unique())) {
+      return()
+    }
+    return(nrow(recipient_unique()))
+  })
+  output$N_Recipient <- renderUI({
+    HTML(paste(
+      "<strong>N",
+      tags$sub("Recipient"),
+      ":</strong>",
+      " ",
+      N_Recipient(),
+      sep = ""
+    ))
+  })
+  
+  # Number post-fmt unique
+  N_P_Unique <- eventReactive(input$go, {
+    if (is.null(post_fmt_unique())) {
+      return()
+    }
+    return(nrow(post_fmt_unique()))
+  })
+  output$N_P_Unique <- renderUI({
+    HTML(paste(
+      "<strong>N",
+      tags$sub("Post-FMT (Unique)"),
+      ":</strong>",
+      " ",
+      N_P_Unique(),
+      sep = ""
+    ))
+  })
+  
+  # Number shared pre-transplant
+  N_otus_shared_pre <- eventReactive(input$go, {
+    if (is.null(shared_pre())) {
+      return()
+    }
+    return(nrow(shared_pre()))
+  })
+  output$num_otus_shared_pre <- renderText({
+    N_otus_shared_pre()
+  })
+  
+  # Number shared throughout
+  N_P_Shared <- eventReactive(input$go, {
+    if (is.null(shared_throughout())) {
+      return()
+    }
+    return(nrow(shared_throughout()))
+  })
+  output$N_P_Shared <- renderUI({
+    HTML(paste(
+      "<strong>N",
+      tags$sub("Post-FMT (Shared)"),
+      ":</strong>",
+      " ",
+      N_P_Shared(),
+      sep = ""
+    ))
+  })
+  
+  # Number shared but lost after transplant
+  N_otus_shared_lost <- eventReactive(input$go, {
+    if (is.null(shared_lost())) {
+      return(0)
+    }
+    return(nrow(shared_lost()))
+  })
+  output$N_shared_lost <- renderUI(({
+    HTML(paste(
+      "<strong>N",
+      tags$sub("Lost | Shared"),
+      ":</strong>",
+      " ",
+      N_otus_shared_lost(),
+      sep = ""
+    ))
+  }))
+  
+  # Total post-FMT
+  N_P_Total <- eventReactive(input$go, {
+    if (is.null(abundance_selected_post_fmt_specific())) {
+      return()
+    }
+    return(nrow(abundance_selected_post_fmt_specific()))
+  })
+  output$N_P_Total <- renderUI({
+    HTML(paste(
+      "<strong>N",
+      tags$sub("Post-FMT (Total)"),
+      ":</strong>",
+      " ",
+      N_P_Total(),
+      sep = ""
+    ))
+  })
+  
+  #### FMT Metrics
+  
+  
+  P_Donor_table <- eventReactive(input$go, {
+    if (input$toggle_taxonomy) {
+      output <-
+        semi_join(abundance_selected_post_fmt_specific(),
+                  donor_unique(),
+                  by = "Taxon")
+    } else {
+      output <-
+        semi_join(abundance_selected_post_fmt_specific(),
+                  donor_unique(),
+                  by = "OTU_ID")
+    }
+    return(output)
+  })
+  output$P_Donor_table <- renderDataTable({
+    P_Donor_table()
+  })
+  
+  # N_P_Donor, the number of OTUs in the post-transplant samples that came from the donor
+  N_P_Donor <- eventReactive(input$go, {
+    if (is.null(P_Donor_table())) {
+      return()
+    }
+    return(nrow(P_Donor_table()))
+  })
+  output$N_P_Donor <- renderUI({
+    HTML(paste(
+      "<strong>N",
+      tags$sub("Donor| Post-FMT"),
+      ":</strong>",
+      " ",
+      N_P_Donor(),
+      sep = ""
+    ))
+  })
+  
+  # D_Engraft the proportion of donor OTUs that made it into the post-transplant samples
+  D_Engraft <- eventReactive(input$go, {
+    if (is.null(donor_unique())) {
+      return()
+    }
+    fraction <- N_P_Donor() / N_Donor()
+    return(fraction)
+  })
+  output$D_Engraft <- renderUI({
+    HTML(paste(
+      "<strong>D",
+      tags$sub("Engraft"),
+      ":</strong>",
+      " ",
+      round(D_Engraft(), 3),
+      sep = ""
+    ))
+  })
+  
+  # P_Donor, the proportion of OTUs in post-transplant samples that came from the donor
+  P_Donor <- eventReactive(input$go, {
+    if (is.null(abundance_selected_post_fmt_specific())) {
+      return()
+    }
+    fraction <- N_P_Donor() / N_P_Total()
+    return(fraction)
+  })
+  output$P_Donor <- renderUI({
+    HTML(paste(
+      "<strong>P",
+      tags$sub("Donor"),
+      ":</strong>",
+      " ",
+      round(P_Donor(), 3),
+      sep = ""
+    ))
+  })
+  
+  # P_Recipient_table, the table of OTUs in the post-transplant samples that came from the recipient
+  P_Recipient_table <- eventReactive(input$go, {
+    if (input$toggle_taxonomy) {
+      output <-
+        semi_join(abundance_selected_post_fmt_specific(),
+                  recipient_unique(),
+                  by = "Taxon")
+    } else {
+      output <-
+        semi_join(abundance_selected_post_fmt_specific(),
+                  recipient_unique(),
+                  by = "OTU_ID")
+    }
+    return(output)
+  })
+  output$P_Recipient_table <- renderDataTable({
+    P_Recipient_table()
+  })
+  
+  # P_Recipient, the number of OTUs in the post-transplant samples that came from the recipient
+  N_P_Recipient <- eventReactive(input$go, {
+    if (is.null(P_Recipient_table())) {
+      return()
+    }
+    return(nrow(P_Recipient_table()))
+  })
+  output$N_P_Recipient <- renderUI({
+    HTML(paste(
+      "<strong>N",
+      tags$sub("Recipient | Post-FMT"),
+      ":</strong>",
+      " ",
+      N_P_Recipient(),
+      sep = ""
+    ))
+  })
+  
+  # R_Persist the proportion of recipient OTUs that remained in the post-transplant samples
+  R_Persist <- eventReactive(input$go, {
+    if (is.null(recipient_unique())) {
+      return()
+    }
+    fraction <- N_P_Recipient() / N_Recipient()
+    return(fraction)
+  })
+  output$R_Persist <- renderUI({
+    HTML(paste(
+      "<strong>R",
+      tags$sub("Persist"),
+      ":</strong>",
+      " ",
+      round(R_Persist(), 3),
+      sep = ""
+    ))
+  })
+  
+  # P_Recipient, the proportion of OTUs in post-transplant samples that came from the recipient
+  P_Recipient <- eventReactive(input$go, {
+    if (is.null(abundance_selected_post_fmt_specific())) {
+      return()
+    }
+    fraction <- N_P_Recipient() / N_P_Total()
+    return(fraction)
+  })
+  output$P_Recipient <- renderUI({
+    HTML(paste(
+      "<strong>P",
+      tags$sub("Recipient"),
+      ":</strong>",
+      " ",
+      round(P_Recipient(), 3),
+      sep = ""
+    ))
+  })
+  
+  # P_Shared , proporiton of OTUs in post-transplant samples that are shared
+  P_Shared <- eventReactive(input$go, {
+    if (is.null(abundance_selected_post_fmt_specific())) {
+      return()
+    }
+    fraction <- N_P_Shared() / N_P_Total()
+    return(fraction)
+  })
+  
+  output$P_Shared <- renderUI({
+    HTML(paste(
+      "<strong>P",
+      tags$sub("Shared"),
+      ":</strong>",
+      " ",
+      round(P_Shared(), 3),
+      sep = ""
+    ))
+  })
+  
+  # P_Unique, proporiton of OTUs in post-transplant samples that are unique
+  P_Unique <- eventReactive(input$go, {
+    if (is.null(abundance_selected_post_fmt_specific())) {
+      return()
+    }
+    fraction <- N_P_Unique() / N_P_Total()
+    return(fraction)
+  })
+  output$P_Unique <- renderUI({
+    HTML(paste(
+      "<strong>P",
+      tags$sub("Unique"),
+      ":</strong>",
+      " ",
+      round(P_Unique(), 3),
+      sep = ""
+    ))
+  })
+  
+  # Engraftment metric - 2 log of P_Donor/P_Recipient
+  Engraftment <- eventReactive(input$go, {
+    if (is.null(abundance_selected_post_fmt_specific())) {
+      return()
+    }
+    engraftment_metric <- log(P_Donor() / P_Recipient(), 2)
+    return(engraftment_metric)
+  })
+  
+  output$Engraftment <- renderUI({
+    HTML(paste("<strong>E:</strong>",
+               round(Engraftment(), 3),
+               sep = " "))
+  })
+  
+  
+  # Metric Vizualization
+  metric_vis <- eventReactive(input$go, {
+    p <-
+      visualize_metrics(
+        N_Donor(),
+        N_Recipient(),
+        N_P_Total(),
+        N_P_Donor(),
+        N_P_Recipient(),
+        N_P_Unique(),
+        N_P_Shared(),
+        post_fmt()
+      )
+    return(p)
+    
+  })
+  output$metric_visualization <- renderPlot({
+    metric_vis()
+  })
+  
+  
+  donor_unique_table <- eventReactive(input$go, {
+    metadata_added <-
+      dplyr::left_join(sample_abundance_by_depth(), metadata_only(), by = "X.SampleID")
+    
+    donor_full <-
+      metadata_added[metadata_added[, input$comparison] ==  donor(), ]
+    donor_grouped <-
+      dplyr::group_by(donor_full, long_label, short_label)
+    donor_summarized <-
+      dplyr::summarize(donor_grouped, MeanAbundance = mean(abundance))
+    donor_output <-
+      dplyr::filter(donor_summarized, long_label %in% donor_unique()[, 1])
+    if (input$abundance_type == 'absolute') {
+      missing_abundance <-
+        mean(donor_full$biomass_ratio) - sum(donor_output$MeanAbundance)
+    } else {
+      missing_abundance <- 1 - sum(donor_output$MeanAbundance)
+    }
+    missing_table <-
+      data.frame(
+        long_label = "Shared/Other",
+        short_label = "Shared/Other",
+        MeanAbundance = missing_abundance
+      )
+    output <- dplyr::bind_rows(donor_output, missing_table)
+    output$Condition <- "Donor"
+    colnames(output) <-
+      c("Taxon", "ShortName", "MeanAbundance", "Condition")
+    output$MeanAbundance <- round(output$MeanAbundance, 4)
+    return(output)
+  })
+  
+  recipient_unique_table <- eventReactive(input$go, {
+    metadata_added <-
+      dplyr::left_join(sample_abundance_by_depth(), metadata_only(), by = "X.SampleID")
+    
+    recipient_full <-
+      metadata_added[metadata_added[, input$comparison] ==  recipient(), ]
+    recipient_grouped <-
+      dplyr::group_by(recipient_full, long_label, short_label)
+    recipient_summarized <-
+      dplyr::summarize(recipient_grouped, MeanAbundance = mean(abundance))
+    recipient_output <-
+      dplyr::filter(recipient_summarized, long_label %in% recipient_unique()[, 1])
+    if (input$abundance_type == 'absolute') {
+      missing_abundance <-
+        mean(recipient_full$biomass_ratio) - sum(recipient_output$MeanAbundance)
+    } else {
+      missing_abundance <- 1 - sum(recipient_output$MeanAbundance)
+    }
+    missing_table <-
+      data.frame(
+        long_label = "Shared/Other",
+        short_label = "Shared/Other",
+        MeanAbundance = missing_abundance
+      )
+    output <- dplyr::bind_rows(recipient_output, missing_table)
+    output$Condition <- "Recipient"
+    colnames(output) <-
+      c("Taxon", "ShortName", "MeanAbundance", "Condition")
+    output$MeanAbundance <- round(output$MeanAbundance, 4)
+    return(output)
+  })
+  
+  post_fmt_table <- eventReactive(input$go, {
+    metadata_added <-
+      dplyr::left_join(sample_abundance_by_depth(), metadata_only(), by = "X.SampleID")
+    
+    post_fmt_full <-
+      metadata_added[metadata_added[, input$comparison] ==  post_fmt(), ]
+    post_fmt_grouped <-
+      dplyr::group_by(post_fmt_full, long_label, short_label)
+    post_fmt_summarized <-
+      dplyr::summarize(post_fmt_grouped, MeanAbundance = mean(abundance))
+    post_fmt_output <-
+      dplyr::filter(post_fmt_summarized,
+                    long_label %in% abundance_selected_post_fmt_specific()[, 1])
+    if (input$abundance_type == 'absolute') {
+      missing_abundance <-
+        mean(post_fmt_full$biomass_ratio) - sum(post_fmt_output$MeanAbundance)
+    } else {
+      missing_abundance <- 1 - sum(post_fmt_output$MeanAbundance)
+    }
+    missing_table <-
+      data.frame(
+        long_label = "Lost/Other",
+        short_label = "Lost/Other",
+        MeanAbundance = missing_abundance
+      )
+    
+    output <- dplyr::bind_rows(post_fmt_output, missing_table)
+    output$Condition <- "Post-FMT"
+    colnames(output) <-
+      c("Taxon", "ShortName", "MeanAbundance", "Condition")
+    output$MeanAbundance <- round(output$MeanAbundance, 4)
+    return(output)
+  })
+  
+  donor_engrafted_table <- eventReactive(input$go, {
+    output <-
+      donor_unique_table()[donor_unique_table()[["Taxon"]] %in% P_Donor_table()[, 1],]
+    return(output)
+  })
+  
+  recipient_persisted_table <- eventReactive(input$go, {
+    output <-
+      recipient_unique_table()[recipient_unique_table()[["Taxon"]] %in% P_Recipient_table()[, 1],]
+    return(output)
+  })
+  
+  post_fmt_donor_table <- eventReactive(input$go, {
+    output <-
+      post_fmt_table()[post_fmt_table()[["Taxon"]] %in% P_Donor_table()[, 1],]
+    return(output)
+  })
+  post_fmt_recipient_table <- eventReactive(input$go, {
+    output <-
+      post_fmt_table()[post_fmt_table()[["Taxon"]] %in% P_Recipient_table()[, 1],]
+    return(output)
+  })
+  post_fmt_unique_table <- eventReactive(input$go, {
+    output <-
+      post_fmt_table()[post_fmt_table()[["Taxon"]] %in% post_fmt_unique()[, 1],]
+    return(output)
+  })
+  shared_throughout_table <- eventReactive(input$go, {
+    output <-
+      post_fmt_table()[post_fmt_table()[["Taxon"]] %in% shared_throughout()[, 1],]
+    return(output)
+  })
+  
+  output$click_info <- renderDataTable({
+    if (!is.null(input$id_tax_file)) {
+      if (input$toggle_taxonomy) {
+        click <- input$plot_click
+        maximum <- max(c(N_Donor(), N_Recipient(), N_P_Total()))
+        buffer <- max(c(1, maximum / 5))
+        
+        if (!is.null(click)) {
+          if (click$x > buffer &
+              click$x < (N_Donor() + buffer) &
+              click$y < 45 & click$y > 30) {
+            # Donor Unique
+            output <- donor_unique_table()
+          } else if (click$x > 2 * buffer + N_Donor() &
+                     click$x < (N_Recipient() + N_Donor() + 2 * buffer) &
+                     click$y < 45 & click$y > 30) {
+            # Recipient Unique
+            output <- recipient_unique_table()
+          } else if (click$x > 3 * buffer + N_Donor() + N_Recipient() &
+                     click$x < (N_P_Total() + N_Recipient() + N_Donor() + 3 * buffer) &
+                     click$y < 45 & click$y > 30) {
+            # Post-FMT
+            output <- post_fmt_table()
+          } else if (click$x > buffer &
+                     click$x < (N_P_Donor() + buffer) &
+                     click$y < 25 & click$y > 10) {
+            # Donor Engrafted
+            output <- donor_engrafted_table()
+          } else if (click$x > (N_Recipient() + N_Donor() + 2 * buffer - N_P_Recipient()) &
+                     click$x < (N_Recipient() + N_Donor() + 2 * buffer) &
+                     click$y < 25 & click$y > 10) {
+            # Recipient Engrafted
+            output <- recipient_persisted_table()
+          } else if (click$x > 3 * buffer + N_Donor() + N_Recipient() &
+                     click$x < (N_P_Donor() + N_Recipient() + N_Donor() + 3 * buffer) &
+                     click$y < 25 & click$y > 10) {
+            # Post-FMT Donor
+            output <- post_fmt_donor_table()
+          } else if (click$x > 3 * buffer + N_Donor() + N_Recipient() + N_P_Donor() &
+                     click$x < (N_P_Donor() + N_P_Recipient() + N_Recipient() + N_Donor() + 3 *
+                                buffer) &
+                     click$y < 25 & click$y > 10) {
+            # Post-FMT Recipient
+            output <- post_fmt_recipient_table()
+          } else if (click$x > 3 * buffer + N_Donor() + N_Recipient() + N_P_Donor() + N_P_Recipient() &
+                     click$x < (
+                       N_P_Donor() + N_P_Recipient() + N_P_Unique() + N_Recipient() + N_Donor() + 3 *
+                       buffer
+                     ) & click$y < 25 & click$y > 10) {
+            # Post-FMT Unique
+            output <- post_fmt_unique_table()
+          } else if (click$x > 3 * buffer + N_Donor() + N_Recipient() + N_P_Donor() + N_P_Recipient() + N_P_Unique() &
+                     click$x < (N_P_Total() + N_Recipient() + N_Donor() + 3 * buffer) &
+                     click$y < 25 & click$y > 10) {
+            # Post-FMT Shared
+            output <- shared_throughout_table()
+          } else {
+            return()
+          }
+          
+          return(output)
+        } else {
+          return()
+        }
+      } else {
+        return()
+      }
+    } else {
+      return()
+    }
+    
+  },
+  options = list(
+    lengthMenu = c(50, 100, 200),
+    pageLength = 50,
+    orderClasses = TRUE
+  ))
+  
+  
+  output$click_plot <- renderPlot({
+    if (!is.null(input$id_tax_file)) {
+      if (input$toggle_taxonomy) {
+        click <- input$plot_click
+        maximum <- max(c(N_Donor(), N_Recipient(), N_P_Total()))
+        buffer <- max(c(1, maximum / 5))
+        
+        if (!is.null(click)) {
+          if (click$x > buffer &
+              click$x < (N_Donor() + buffer) &
+              click$y < 45 & click$y > 30) {
+            # Donor Unique
+            plot_table <- donor_unique_table()
+          } else if (click$x > 2 * buffer + N_Donor() &
+                     click$x < (N_Recipient() + N_Donor() + 2 * buffer) &
+                     click$y < 45 & click$y > 30) {
+            # Recipient Unique
+            plot_table <- recipient_unique_table()
+          } else if (click$x > 3 * buffer + N_Donor() + N_Recipient() &
+                     click$x < (N_P_Total() + N_Recipient() + N_Donor() + 3 * buffer) &
+                     click$y < 45 & click$y > 30) {
+            # Post-FMT
+            plot_table <- post_fmt_table()
+          } else if (click$x > buffer &
+                     click$x < (N_P_Donor() + buffer) &
+                     click$y < 25 & click$y > 10) {
+            # Donor Engrafted
+            plot_table <- donor_engrafted_table()
+          } else if (click$x > (N_Recipient() + N_Donor() + 2 * buffer - N_P_Recipient()) &
+                     click$x < (N_Recipient() + N_Donor() + 2 * buffer) &
+                     click$y < 25 & click$y > 10) {
+            # Recipient Engrafted
+            plot_table <- recipient_persisted_table()
+          } else if (click$x > 3 * buffer + N_Donor() + N_Recipient() &
+                     click$x < (N_P_Donor() + N_Recipient() + N_Donor() + 3 * buffer) &
+                     click$y < 25 & click$y > 10) {
+            # Post-FMT Donor
+            plot_table <- post_fmt_donor_table()
+          } else if (click$x > 3 * buffer + N_Donor() + N_Recipient() + N_P_Donor() &
+                     click$x < (N_P_Donor() + N_P_Recipient() + N_Recipient() + N_Donor() + 3 *
+                                buffer) &
+                     click$y < 25 & click$y > 10) {
+            # Post-FMT Recipient
+            plot_table <- post_fmt_recipient_table()
+          } else if (click$x > 3 * buffer + N_Donor() + N_Recipient() + N_P_Donor() + N_P_Recipient() &
+                     click$x < (
+                       N_P_Donor() + N_P_Recipient() + N_P_Unique() + N_Recipient() + N_Donor() + 3 *
+                       buffer
+                     ) & click$y < 25 & click$y > 10) {
+            # Post-FMT Unique
+            plot_table <- post_fmt_unique_table()
+          } else if (click$x > 3 * buffer + N_Donor() + N_Recipient() + N_P_Donor() + N_P_Recipient() + N_P_Unique() &
+                     click$x < (N_P_Total() + N_Recipient() + N_Donor() + 3 * buffer) &
+                     click$y < 25 & click$y > 10) {
+            # Post-FMT Unique
+            plot_table <- shared_throughout_table()
+          } else {
+            plot_table <- NULL
+          }
+          
+          if (!is.null(plot_table)) {
+            if (input$abundance_type == 'relative') {
+              plot_table$MeanAbundance <- plot_table$MeanAbundance * 100
+              ylabel <- "Relative Abundance (% of OTUs)\n"
+              ylimit <- 100
+            } else {
+              ylabel <-
+                "Absolute Abundance \n(ug DNA for each Taxa per mg Feces)\n"
+              ylimit <- max(metadata_only()$biomass_ratio)
+            }
+            
+            i <- grep(input$selected_depth, phylogeny)
+            legend_label <-
+              paste(
+                "Taxon (",
+                phylogeny[i - 2],
+                ".",
+                phylogeny[i - 1],
+                ".",
+                input$selected_depth,
+                ")",
+                sep = ""
+              )
+            plot <-
+              ggplot(data = plot_table,
+                     aes(
+                       x = Condition,
+                       y = MeanAbundance,
+                       fill = ShortName
+                     )) + geom_bar(color =
+                                     "black", stat = 'identity') + EJC_theme() + scale_fill_manual(name = legend_label, values = EJC_colors) + labs(x = "",
+                                                                                                                                                    y = ylabel,
+                                                                                                                                                    title = "") + theme(
+                                                                                                                                                      legend.position = 'right',
+                                                                                                                                                      legend.direction = 'vertical',
+                                                                                                                                                      aspect.ratio = 2
+                                                                                                                                                    ) + guides(fill = guide_legend(reverse = TRUE)) + coord_cartesian(ylim = c(0, ylimit))
+            final_output <- plot
+            
+            return(final_output)
+          }
+        } else {
+          return()
+        }
+      } else {
+        return()
+      }
+    } else {
+      return()
+    }
+  })
+  
+  ########
+  
+  final_otu_matrix <- eventReactive(input$go, {
+    if (input$toggle_taxonomy) {
+      table <-
+        abundance_selected_metadata_added()[, c(T, grepl(
+          'Bacteria',
+          colnames(abundance_selected_metadata_added())
+        )[-1])]
+    } else {
+      table <-
+        abundance_selected_metadata_added()[, c(T, grepl('OTU_', colnames(
+          abundance_selected_metadata_added()
+        ))[-1])]
+    }
+    matrix_otus <-  as.matrix(table[, -1])
+    rownames(matrix_otus) <- table[, 1]
+    return(matrix_otus)
+  })
+  
+  pc_table <- reactive({
+    distance_table <-
+      as.matrix(vegan::vegdist(final_otu_matrix(), method = input$distance_method))
+    pca <-
+      cmdscale(
+        distance_table,
+        k = nrow(final_otu_matrix()) - 1,
+        eig = TRUE,
+        add = TRUE
+      )
+    return(pca)
+  })
+  
+  data_viz_table <- reactive({
+    shannon <- vegan::diversity(final_otu_matrix(), index = 'shannon')
+    simpson <-
+      vegan::diversity(final_otu_matrix(), index = 'simpson')
+    pc_only <-
+      bind_cols(
+        as.data.frame(pc_table()$points[, 1]),
+        as.data.frame(pc_table()$points[, 2]),
+        as.data.frame(pc_table()$points[, 3]),
+        as.data.frame(pc_table()$points[, 4]),
+        as.data.frame(pc_table()$points[, 5])
+      )
+    colnames(pc_only) <- c("PC1", "PC2", "PC3", "PC4", "PC5")
+    pc_only$X.SampleID <-
+      as.character(row.names(final_otu_matrix()))
+    pc_only$Shannon <- shannon
+    pc_only$Simpson <- simpson
+    if (input$toggle_taxonomy) {
+      pre_output <-
+        dplyr::left_join(pc_only, abundance_selected_metadata_added(), by = 'X.SampleID')
+    } else {
+      pre_output <-
+        dplyr::left_join(pc_only, abundance_selected_metadata_added(), by = 'X.SampleID')
+    }
+    output_table <- droplevels.data.frame(pre_output)
+    return(output_table)
+  })
+  
+  
+  output$pc1 <- renderText({
+    eig <- pc_table()$eig
+    return(percent(eig[1] / sum(eig)))
+  })
+  output$pc2 <- renderText({
+    eig <- pc_table()$eig
+    return(percent(eig[2] / sum(eig)))
+  })
+  output$pc3 <- renderText({
+    eig <- pc_table()$eig
+    return(percent(eig[3] / sum(eig)))
+  })
+  output$pc4 <- renderText({
+    eig <- pc_table()$eig
+    return(percent(eig[4] / sum(eig)))
+  })
+  output$pc5 <- renderText({
+    eig <- pc_table()$eig
+    return(percent(eig[5] / sum(eig)))
+  })
+  
+  percent_explained_table <- reactive({
+    eig <- pc_table()$eig
+    PC <- c("PC1", "PC2", "PC3", "PC4", "PC5")
+    PercentExplained <- percent(eig / sum(eig))[1:5]
+    df <- data.frame(PC, PercentExplained)
+    return(df)
+  })
+  
+  output$plot_x <- renderUI({
+    selectInput('plot_x', 'X', names(data_viz_table()))
+  })
+  output$plot_y <- renderUI({
+    selectInput('plot_y',
+                'Y',
+                names(data_viz_table()),
+                names(data_viz_table())[[2]])
+  })
+  output$plot_color_by <- renderUI({
+    selectInput('plot_color_by',
+                'Color By',
+                c('None', names(data_viz_table())),
+                selected = input$comparison)
+  })
+  output$plot_facet_row <- renderUI({
+    selectInput('facet_row', 'Facet Row', c(None = '.', names(data_viz_table())))
+  })
+  output$plot_facet_col <- renderUI({
+    selectInput('facet_col', 'Facet Column', c(None = '.', names(data_viz_table())))
+  })
+  
+  plot_inputs <- reactive({
+    if (!is.null(input$plot_x) && !is.null(input$plot_y)) {
+      output <-
+        paste(
+          input$distance_method,
+          input$plot_x,
+          input$plot_y,
+          input$plot_color_by,
+          input$facet_row,
+          input$facet_col,
+          input$point_size,
+          input$plot_type
+        )
+    }
+    else {
+      output <- NULL
+    }
+    return(output)
+  })
+  
+  spree_plot <- eventReactive(plot_inputs() , {
+    x_spree <-
+      paste("PC", as.character(seq(1, length(pc_table(
+        
+      )$eig))), sep = " ")
+    y_spree <- (pc_table()$eig / sum(pc_table()$eig)) * 100
+    
+    spree_data <- data.frame(x_spree, y_spree)
+    
+    p <-
+      ggplot(data = spree_data[1:5,], aes(x = x_spree, y = y_spree)) + geom_bar(stat = 'identity') + labs(x = "", y = "Percent Explained") + theme_classic() + coord_cartesian(ylim = c(0, 100)) + theme(
+        axis.text = element_text(size = 14, face = "bold"),
+        axis.title = element_text(size = 16, face = "bold"),
+        axis.line.x = element_line(size = 1, color = 'black'),
+        axis.line.y = element_line(size = 1, color = 'black'),
+        axis.ticks = element_line(size = 1.5)
+      ) + scale_y_continuous(expand = c(0, 0))
+    return(p)
+  })
+  output$spree_plot <- renderPlot({
+    spree_plot()
+  })
+  
+  data_viz_plot <- eventReactive(plot_inputs(), {
     xval <- input$plot_x
     yval <- input$plot_y
-    p <- ggplot(data = pc_values_plus_metadata(), aes_string(x=xval, y=yval)) + geom_point(size = input$point_size) +
+    plot <-
+      ggplot2::ggplot(data = data_viz_table(), aes_string(x = xval, y = yval))
+    if ('Boxplot' %in% input$plot_type) {
+      plot <- plot + geom_boxplot()
+    }
+    
+    if ('Scatter' %in% input$plot_type) {
+      plot <- plot + geom_point(size = input$point_size)
+    }
+    p <- plot +
       theme_classic() +
-      theme(axis.text=element_text(size=14, face="bold"), axis.title=element_text(size=16,face="bold"), axis.line.x=element_line(size=1, color = 'black'), axis.line.y=element_line(size=1, color = 'black'), axis.text.x=element_text(angle = 45,hjust = 1), axis.ticks=element_line(size=1.5))
-
-
+      theme(
+        axis.text = element_text(size = 14, face = "bold"),
+        axis.title = element_text(size = 16, face = "bold"),
+        axis.line.x = element_line(size = 1, color = 'black'),
+        axis.line.y = element_line(size = 1, color = 'black'),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        axis.ticks = element_line(size = 1.5)
+      )
+    
+    
     if (!is.null(input$plot_color_by)) {
       if (input$plot_color_by != 'None') {
-        p <- p + aes_string(color=input$plot_color_by)
+        p <- p + aes_string(color = input$plot_color_by)
         if (input$plot_color_by == input$comparison) {
           colors <- c("blue3", "firebrick3", "darkgreen")
           names(colors) <- c(donor(), recipient(), post_fmt())
-          p <- p + scale_colour_manual(values=colors)
+          p <-
+            p + scale_colour_manual(values = colors)
         }
       }
     }
-
+    
     if (!is.null(input$facet_row) & !is.null(input$facet_col)) {
       facets <- paste(input$facet_row, '~', input$facet_col, sep = " ")
       if (facets != '. ~ .') {
-          p <- p + facet_grid(facets)
+        p <- p + facet_grid(facets)
       }
     }
-
-    if (input$jitter)
-      p <- p + geom_jitter()
-    if (input$smooth)
-      p <- p + geom_smooth()
-
-    print(p)
-
-  })
-  output$plot1 <- renderPlot({plot_item()})
-  output$plot_download = downloadHandler(filename = 'ordination_plot.png', content = function(file) {
-      device <- function(..., width, height) {
-        grDevices::png(..., width = 2*width, height = height,
-                       res = 500, units = "in")
-      }
-      ggsave(file, plot = plot_item(), device = device)
-    })
-
-  output$pc_table <- renderDataTable({(pc_values_plus_metadata())}, options = list(lengthMenu = c(50,100,200), pageLength = 50, orderClasses = TRUE))
-  output$pc_table_download <- downloadHandler(filename = function() {
-    'pc_table.csv'
-  }, content = function(con) {
-    write.csv(pc_values_plus_metadata(), con, row.names = FALSE)
-  })
-
-
-
-  ##########################################################################################
-  #                                                                                        #
-  # The following section is for when taxonomy is to be added (Being Updated)              #
-  #                                                                                        #
-  ##########################################################################################
-
-  # Load taxonomy map
-  tax_map <- reactive ({
-    if (is.null(input$id_tax_file)) {return()}
-    withProgress(message = "Loading Taxonomy", value = 0, {
-      raw <- input$id_tax_file
-      table <- read.delim(raw$datapath, header = FALSE)
-      incProgress(0.5, detail = "Cleaning Up")
-      colnames(table) <- c("OTU", "Taxon", "Quality_Score")
-      table$OTU <- paste("OTU", table$OTU, sep = "_")
-    })
-    return(table)
-  })
-
-  output$tax_loaded <- renderText({
-    if (!is.null(tax_map())) {
-      output <- "Taxonomy map loaded successfully..."
-    }
-  })
-
-
-  donor_nonzero_taxa <- reactive({
-    withProgress(value = 0.5, message = "Collapsing Taxonomy", {
-    out <- collapse_taxonomy(inner_join(donor_nonzero(), tax_map(), by = "OTU"))
-    })
-    return(out)
-  })
-  recipient_nonzero_taxa <- reactive({
-    withProgress(value = 0.5, message = "Collapsing Taxonomy", {
-    out <- collapse_taxonomy(inner_join(recipient_nonzero(), tax_map(), by = "OTU"))
-    })
-    return(out)
-  })
-  post_fmt_nonzero_taxa <- reactive({
-    withProgress(value = 0.5, message = "Collapsing Taxonomy", {
-    out <- collapse_taxonomy(inner_join(post_fmt_nonzero(), tax_map(), by = "OTU"))
-    })
-    return(out)
-  })
-
-
-
-  donor_unique_taxa <- reactive({
-    out <- anti_join(donor_nonzero_taxa(), recipient_nonzero_taxa(), by = "Taxon")
-    return(out)
-  })
-  output$donor_unique_taxa <- renderDataTable({donor_unique_taxa()},options = list(lengthMenu = c(50,100,200), pageLength = 50, orderClasses = TRUE))
-  observeEvent(input$showhide_donor_taxa, {toggle("donor_unique_taxa")})
-  
-  recipient_unique_taxa <- reactive({
-    out <- anti_join(recipient_nonzero_taxa(), donor_nonzero_taxa(), by = "Taxon")
-    return(out)
-  })
-  output$recipient_unique_taxa <- renderDataTable({recipient_unique_taxa()}, options = list(lengthMenu = c(50,100,200), pageLength = 50, orderClasses = TRUE))
-  observeEvent(input$showhide_recipient_taxa, {toggle("recipient_unique_taxa")})
-  
-  post_fmt_unique_taxa <- reactive({
-    out <- anti_join(anti_join(post_fmt_nonzero_taxa(), donor_nonzero_taxa(), by = "Taxon"), recipient_nonzero_taxa(), by = "Taxon")
-    return(out)
-  })
-  output$post_fmt_unique_taxa <- renderDataTable({post_fmt_unique_taxa()}, options = list(lengthMenu = c(50,100,200), pageLength = 50, orderClasses = TRUE))
-  observeEvent(input$showhide_unique_taxa, {toggle("post_fmt_unique_taxa")})
-  
-  post_fmt_nonunique_taxa <- reactive({
-    a <- semi_join(post_fmt_nonzero_taxa(), donor_unique_taxa(), by = "Taxon")
-    b <- semi_join(post_fmt_nonzero_taxa(), recipient_unique_taxa(), by = "Taxon")
-    out <- bind_rows(a, b)
-    return(out)
-  })
-  shared_pre_taxa <- reactive({
-    output <- semi_join(donor_nonzero_taxa(), recipient_nonzero_taxa(), by = "Taxon")
-    return(output)
-  })
-  shared_throughout_taxa <- reactive({
-    output <- semi_join(shared_pre_taxa(), post_fmt_nonzero_taxa(), by = "Taxon")
-	output$Specificity <- "Shared"
-    return(output)
-  })
-  output$shared_throughout_taxa <- renderDataTable({shared_throughout_taxa()}, options = list(lengthMenu = c(50,100,200), pageLength = 50, orderClasses = TRUE))
-  observeEvent(input$showhide_shared_taxa, {toggle("shared_throughout_taxa")})
-
-  post_fmt_selected_taxa <- reactive({
-    if(input$remove_OTUs_test_specific) {
-      return(post_fmt_nonunique_taxa())
-    }
-    else {
-      return(post_fmt_nonzero_taxa())
-    }
-  })
-
-  # Return numbers of OTUs unique to each condition
-  N_Donor_taxa <- reactive({
-    if (is.null(donor_unique_taxa())) {return()}
-    return(nrow(donor_unique_taxa()))})
-    output$N_Donor_taxa <- renderUI({
-  	  HTML(paste("<strong>N", tags$sub("Donor"), ":</strong>", " ",N_Donor_taxa(), sep = ""))
-    })
-
-  N_Recipient_taxa <- reactive({
-    if (is.null(recipient_unique_taxa())) {return()}
-    return(nrow(recipient_unique_taxa()))})
-    output$N_Recipient_taxa <- renderUI({
-  	  HTML(paste("<strong>N", tags$sub("Recipient"), ":</strong>", " ",N_Recipient_taxa(), sep = ""))
-    })
-
-  N_P_Unique_taxa <- reactive({
-    if (is.null(post_fmt_unique_taxa())) {return()}
-    return(nrow(post_fmt_unique_taxa()))})
-    output$N_P_Unique_taxa <- renderUI({
-  	  HTML(paste("<strong>N", tags$sub("Post-FMT (Unique)"), ":</strong>", " ",N_P_Unique_taxa(), sep = ""))
-    })
-
-  N_otus_nonunique_post_fmt_taxa <- reactive({
-    if (is.null(post_fmt_nonqunique_taxa())) {return()}
-    return(nrow(post_fmt_nonunique_taxa()))})
-  output$num_otus_nonunique_post_fmt_taxa <- renderText({N_otus_nonunique_post_fmt_taxa()})
-
-  N_otus_shared_pre_taxa <- reactive({
-    if (is.null(shared_pre_taxa())) {return()}
-    return(nrow(shared_pre_taxa()))})
-  output$num_otus_shared_pre_taxa <- renderText({N_otus_shared_pre_taxa()})
-
-  N_P_Shared_taxa <- reactive({
-    if (is.null(shared_throughout_taxa())) {return()}
-    return(nrow(shared_throughout_taxa()))})
-    output$N_P_Shared_taxa <- renderUI({
-  	  HTML(paste("<strong>N", tags$sub("Post-FMT (Shared)"), ":</strong>", " ",N_P_Shared_taxa(), sep = ""))
-    })
-
-  N_otus_post_fmt_nonzero_taxa <- reactive({
-    if (is.null(post_fmt_nonzero_taxa())) {return()}
-    return(nrow(post_fmt_nonzero_taxa()))
-  })
-  output$num_otus_post_fmt_nonzero_taxa <- renderText({N_otus_post_fmt_nonzero_taxa()})
-
-  N_P_Total_taxa <- reactive({
-    if (is.null(post_fmt_selected_taxa())) {return()}
-    return(nrow(post_fmt_selected_taxa()))
-  })
-  output$N_P_Total_taxa <- renderUI({
-	  HTML(paste("<strong>N", tags$sub("Post-FMT (Total)"), ":</strong>", " ",N_P_Total_taxa(), sep = ""))
-  })
-
-  output$remove_OTUs_taxa <- renderText({
-    if (input$remove_OTUs_test_specific){
-      "Yes"
-    }
-    else {
-      "No"
-    }
-  })
-
-  #Create a combined table of OTUs unique for the different conditions, including nonzero fraction. Send to UI and allow download
-  OTUs_unique_combined_taxa <- reactive({
-    # Merge these tables together
-    if (input$remove_OTUs_test_specific) {
-      merged <- bind_rows(donor_unique_taxa(), recipient_unique_taxa())
-    } else {
-      merged <- bind_rows(bind_rows(donor_unique_taxa(), recipient_unique_taxa()), post_fmt_unique_taxa())
-    }
-    output <- merged %>% arrange(Specificity)
-    return(output)
-  })
-  output$otus_unique_to_condition_taxa <- renderDataTable({OTUs_unique_combined_taxa()}, options = list(lengthMenu = c(50,100,200), pageLength = 50, orderClasses = TRUE))
-  output$x3 <- downloadHandler(filename = function() {
-    'otus_unique_to_each_condition_combined_taxa.csv'
-  }, content = function(con) {write.csv(OTUs_unique_combined_taxa(), con, row.names = FALSE)})
-
-
-
-
-
-  # Merge taxonomy information with final output table
-  taxonomy_added_final_table <- reactive({
-    if (!is.null(tax_map())) {
-    mid <- inner_join(filtered_relative_abundance_unique_plus_differences(), tax_map(), by = "OTU")
-    output <- table_reorder_first(mid, "Taxon") %>% arrange(Specificity)
-    }
-    else {output <- filtered_relative_abundance_unique_plus_differences()}
-    return(output)
-  })
-
-  output$taxonomy_added_final <- renderDataTable(taxonomy_added_final_table(), options = list(lengthMenu = c(50,100,200), pageLength = 50, orderClasses = TRUE))
-  output$x7 <- downloadHandler(filename = function() {
-    'final_table_plus_taxonomy.csv'
-  }, content = function(con) {
-    write.csv(taxonomy_added_final_table(), con, row.names = FALSE)
-  })
-
-  # Create a table grouped by condition specificity and produce a table giving the number of unique
-  # taxonomic assignments for each condition
-  distinct_taxa_summary <- reactive({
-    if (!is.null(tax_map())) {
-    grouping <- group_by(taxonomy_added_final_table(), Specificity)
-    return(summarise(grouping, Distinct_Taxa = n_distinct(Taxon)))
-    }
-    else {return(taxonomy_added_final_table())}
-  })
-
-  output$distinct_taxa_summary_table <- renderDataTable(distinct_taxa_summary(), options = list(lengthMenu = c(50,100,200), pageLength = 50, orderClasses = TRUE))
-  output$x8 <- downloadHandler(filename = function() {
-    'summary_of_distinct_taxa.csv'
-  }, content = function(con) {
-    write.csv(distinct_taxa_summary(), con, row.names = FALSE)
-  })
-
-  # Collapse the final table by shared taxonomy and average the mean/median OTU count & differences
-  # for OTUs that share taxonomy
-  collapsed_taxonomy <- reactive({
-    if (!is.null(tax_map())) {
-    return(collapse_taxonomy(taxonomy_added_final_table()))
-    }
-    else {return(taxonomy_added_final_table())}
-  })
-
-  output$collapsed_taxonomy_table <- renderDataTable(collapsed_taxonomy(), options = list(lengthMenu = c(50,100,200), pageLength = 50, orderClasses = TRUE))
-  output$x9 <- downloadHandler(filename = function() {
-    'table_collapsed_by_taxonomy.csv'
-  }, content = function(con) {
-    write.csv(collapsed_taxonomy(), con, row.names = FALSE)
-  })
-
-
-
-  # # Define Transplantation metrics + Taxonomy
-
-
-  # P_Donor_table_taxa, the table of taxa in the post-transplant samples that came from the donor.
-  P_Donor_table_taxa <- reactive({
-    validate(need(!is.null(input$input_otu_table) && !is.null(input$mapping_file), "Please load an OTU table and mapping file."))
-    output <- semi_join(post_fmt_selected_taxa(), donor_unique_taxa(), by = "Taxon")
-    return(output)
-  })
-  output$P_Donor_table_taxa <- renderDataTable({P_Donor_table_taxa()})
-
-  # P_Donor_taxa, the number of taxa in the post-transplant samples that came from the donor
-  N_P_Donor_taxa <- reactive({
-    if (is.null(P_Donor_table_taxa())) {return()}
-    return(nrow(P_Donor_table_taxa()))
-  })
-  output$N_P_Donor_taxa <- renderUI({
-	  HTML(paste("<strong>N", tags$sub("Donor| Post-FMT"), ":</strong>", " ",N_P_Donor_taxa(), sep = ""))
-  })
-
-  # D_Engraft_taxa the proportion of donor taxa that made it into the post-transplant samples
-  D_Engraft_taxa <- reactive({
-    if (is.null(donor_unique_taxa())) {return()}
-    fraction <- N_P_Donor_taxa()/N_Donor_taxa()
-    return(fraction)
-  })
-  output$D_Engraft_taxa <- renderUI({
-	  HTML(paste("<strong>D", tags$sub("Engraft"), ":</strong>", " ", round(D_Engraft_taxa(), 3), sep = ""))
-  })
-
-  # P_Donor_taxa, the proportion of taxa in post-transplant samples that came from the donor
-  P_Donor_taxa <- reactive({
-    if (is.null(post_fmt_selected_taxa())) {return()}
-    fraction <- N_P_Donor_taxa()/N_P_Total_taxa()
-    return(fraction)
-  })
-  output$P_Donor_taxa <- renderUI({
-	  HTML(paste("<strong>P", tags$sub("Donor"), ":</strong>", " ", round(P_Donor_taxa(), 3), sep = ""))
-  })
-
-  # P_Recipient_table_taxa, the table of taxa in the post-transplant samples that came from the recipient
-  P_Recipient_table_taxa <- reactive({
-    validate(need(!is.null(input$input_otu_table) && !is.null(input$mapping_file), "Please load an OTU table and mapping file."))
-    output <- semi_join(post_fmt_selected_taxa(), recipient_unique_taxa(), by = "Taxon")
-    return(output)
-  })
-  output$P_Recipient_table_taxa <- renderDataTable({P_Recipient_table_taxa()})
-
-  # N_P_Recipient_taxa, the number of taxa in the post-transplant samples that came from the recipient
-  N_P_Recipient_taxa <- reactive({
-    if (is.null(P_Recipient_table_taxa())) {return()}
-    return(nrow(P_Recipient_table_taxa()))
-  })
-  output$N_P_Recipient_taxa <- renderUI({
-	  HTML(paste("<strong>N", tags$sub("Recipient| Post-FMT"), ":</strong>", " ",N_P_Recipient_taxa(), sep = ""))
-  })
-
-  # R_Persist_taxa the proportion of recipient taxa that remained in the post-transplant samples
-  R_Persist_taxa <- reactive({
-    if (is.null(recipient_unique_taxa())) {return()}
-    fraction <- N_P_Recipient_taxa()/N_Recipient_taxa()
-    return(fraction)
-  })
-  output$R_Persist_taxa <- renderUI({
-	  HTML(paste("<strong>R", tags$sub("Persist"), ":</strong>", " ", round(R_Persist_taxa(), 3), sep = ""))
-  })
-
-  # P_Recipient_taxa, the proportion of taxa in post-transplant samples that came from the recipient
-  P_Recipient_taxa <- reactive({
-    if (is.null(post_fmt_selected_taxa())) {return()}
-    fraction <- N_P_Recipient_taxa()/N_P_Total_taxa()
-    return(fraction)
-  })
-  output$P_Recipient_taxa <- renderUI({
-	  HTML(paste("<strong>P", tags$sub("Recipient"), ":</strong>", " ", round(P_Recipient_taxa(), 3), sep = ""))
-  })
-  
-  # P_Shared_taxa , proporiton of taxa in post-transplant samples that are shared
-  P_Shared_taxa <- reactive({
-	  if (is.null(post_fmt_selected_taxa())) {return()}
-	  fraction <- N_P_Shared_taxa()/N_P_Total_taxa()
-	  return(fraction)  	
-  })
-  output$P_Shared_taxa <- renderUI({
-	  HTML(paste("<strong>P", tags$sub("Shared"), ":</strong>", " ", round(P_Shared_taxa(), 3), sep = ""))
-  })
-  
-  # P_Unique_taxa, proporiton of taxa in post-transplant samples that are unique
-  P_Unique_taxa <- reactive({
-	  if(is.null(post_fmt_selected_taxa())) {return()}
-	  fraction <- N_P_Unique_taxa()/N_P_Total_taxa()
-	  return(fraction)
-  })
-  output$P_Unique_taxa <- renderUI({
-	  HTML(paste("<strong>P", tags$sub("Unique"), ":</strong>", " ", round(P_Unique_taxa(), 3), sep = ""))
-  })
-  
-  
-  
-
-  ##########################################################################################
-  #                                                                                        #
-  # The following generates a visualization of the FMT metrics (Taxa)                      #
-  #                                                                                        #
-  ##########################################################################################
-
-  metric_vis_taxa <- reactive({
-    if (input$remove_OTUs_test_specific) {
-      N_unique_vis_taxa <- 0
-      N_shared_vis_taxa <- 0
-    }
-    else {
-      N_unique_vis_taxa <- N_P_Unique_taxa()
-      N_shared_vis_taxa <- N_P_Shared_taxa()
-    }
-    p <- visualize_metrics(N_Donor_taxa(), N_Recipient_taxa(), N_P_Total_taxa(), N_P_Donor_taxa(), N_P_Recipient_taxa(), N_unique_vis_taxa, N_shared_vis_taxa, paste(post_fmt(), "(Taxa)", sep = " "))
     return(p)
-
   })
-  output$metric_visualization_taxa <- renderPlot({metric_vis_taxa()})
-  output$metric_vis_download_taxa = downloadHandler(filename = 'metric_vis_taxa.png', content = function(file) {
-    device <- function(..., width, height) {
-      grDevices::png(..., width = 2*width, height = height,
-                     res = 500, units = "in")
-    }
-    ggsave(file, plot = metric_vis_taxa(), device = device)
+  output$data_plot <- renderPlot({
+    data_viz_plot()
   })
-
-  ##########################################################################################
-  # Include these metrics into a table for download (Taxa)                                 #
-  ##########################################################################################
-
-  # Populate table for Metrics
-  metric_table_taxa <- reactive({
-    validate(need(!is.null(input$input_otu_table) && !is.null(input$mapping_file), "Please load an OTU table and mapping file."))
-    Item <- c(   "Input OTU Table", 		"# OTUs in original table",
-                 "Mapping File", 			"Metadata Category",
-                 "DonorID", 				"N_Donor_Samples",
-				 "RecipientID",				"N_Recipient_Samples", 
-				 "Post_FMT_ID", 			"N_Post_FMT_Samples", 
-				 "Rel_Abundance_Filter", 	"N_OTUs_Rel_Abundance_Filtered",
-                 "Fleeting_OTUs_Filter", 	"N_OTUs_Fleeting_Filtered", 
-				 "Comparison_Metric",       "Exclude_Unique_And_Shared",
-                 "N_Donor", 				"N_Recipient", 
-				 "N_P_Total",             	"N_P_Unique", 
-				 "N_P_Shared",              "N_P_Donor", 
-				 "D_Engraft", 				"P_Donor",
-                 "N_P_Recipient", 			"R_Persist", 
-				 "P_Recipient", 			"P_Shared", 
-				 "P_Unique",				"Taxonomy_Added")
-				 
-    Value <- c(input$input_otu_table$name, 	num_otus_raw(),
-               input$mapping_file$name, 	input$comparison,
-               donor(), 					N_donor_samples(), 
-			   recipient(),		 			N_recipient_samples(), 
-			   post_fmt(), 					N_post_fmt_samples(), 
-			   input$min_OTU_fraction, 		num_otus_preprocess(),
-               input$min_fraction, 			N_otus_after_nonzero_filter(), 
-			   input$comparison_test,      	input$remove_OTUs_test_specific,
-               N_Donor_taxa(), 				N_Recipient_taxa(), 
-			   N_P_Total_taxa(),  			N_P_Unique_taxa(), 
-			   N_P_Shared_taxa(),  			N_P_Donor_taxa(), 
-			   D_Engraft_taxa(), 			P_Donor_taxa(),
-               N_P_Recipient_taxa(), 		R_Persist_taxa(), 
-			   P_Recipient_taxa(),			P_Shared_taxa(),
-			   P_Unique_taxa(),				"Yes")
+  
+  # Parameter Summary Table
+  
+  param_summary_table <- reactive({
+    validate(need(
+      !is.null(input$input_otu_table) &&
+        !is.null(input$metadata_file),
+      "Please load an OTU table and mapping file."
+    ))
+    Item <- c(
+      "Input OTU Table",
+      "Metadata File",
+      'Taxonomy File',
+      "Metadata Category",
+      "Donor Condition",
+      "Recipient Condition",
+      "Post-FMT Condition",
+      "Minimum Relative Abundance Filter",
+      "Fleeting Filter",
+      "Abundance Type",
+      "Incorporate Taxonomy?",
+      "Taxonomic Depth",
+      "Number Donor Samples",
+      "Number Recipient Samples",
+      "Number Post-FMT Samples",
+      "Starting OTUs",
+      "OTUs After Relative Abundance Filer",
+      "OTUs (or Taxa) after Fleeting OTU Filter",
+      "Distance Metric for PCA"
+    )
+    
+    Value <-
+      c(
+        input$input_otu_table$name,
+        input$metadata_file$name,
+        input$id_tax_file$name,
+        input$comparison,
+        donor(),
+        recipient(),
+        post_fmt(),
+        input$min_OTU_fraction,
+        input$min_fraction,
+        input$abundance_type,
+        input$toggle_taxonomy,
+        input$selected_depth,
+        N_donor_samples(),
+        N_recipient_samples(),
+        N_post_fmt_samples(),
+        num_otus_raw(),
+        num_otus_relative_filtered(),
+        N_otus_after_fleeting_filter(),
+        input$distance_method
+      )
+    
     df <- data.frame(Item, Value)
     return(df)
   })
   
-  
-  
-  
-
-  output$metrics_taxa <- renderTable({metric_table_taxa()})
-  output$xmetrics_taxa <- downloadHandler(filename = function() {
-    'transplant_metric_summary_taxa.csv'
-  }, content = function(con) {
-    write.csv(metric_table_taxa(), con, row.names = FALSE)
+  # Metric Summary Table
+  metric_summary_table <- reactive({
+    validate(need(
+      !is.null(input$input_otu_table) &&
+        !is.null(input$metadata_file),
+      "Please load an OTU table and mapping file."
+    ))
+    Item <- c(
+      "Donor",
+      "Recipient",
+      "Post-FMT",
+      "Taxonomy Added?",
+      "N_Donor",
+      "N_Recipient",
+      "N_P_Total",
+      "N_P_Unique",
+      "N_P_Shared",
+      "N_Shared_Lost",
+      "N_P_Donor",
+      "N_P_Recipient",
+      "D_Engraft",
+      "R_Persist",
+      "P_Donor",
+      "P_Recipient",
+      "P_Unique",
+      "P_Shared",
+      "Engraft"
+    )
+    
+    
+    Value <- c(
+      donor(),
+      recipient(),
+      post_fmt(),
+      input$toggle_taxonomy,
+      N_Donor(),
+      N_Recipient(),
+      N_P_Total(),
+      N_P_Unique(),
+      N_P_Shared(),
+      N_otus_shared_lost(),
+      N_P_Donor(),
+      N_P_Recipient(),
+      D_Engraft(),
+      R_Persist(),
+      P_Donor(),
+      P_Recipient(),
+      P_Unique(),
+      P_Shared(),
+      Engraftment()
+    )
+    
+    df <- data.frame(Item, Value)
+    return(df)
+    
   })
-
-
   
-
-  # Handle downloading of zip file of all tables
-  output$xall <- downloadHandler(filename = function() {
-    paste(input$output_name, ".zip", sep = ".")
-  }, content = function(fname) {
-    initial_dir <- getwd()
-    tmpdir <- tempdir()
-    setwd(tempdir())
-    fs <- c("settings.csv", "raw_table.csv", "fraction_nonzero.csv", "otus_unique_to_each_condition.csv",
-            "filtered_differences_of_metric_table.csv", "otu_taxonomy_map.csv", "final_table_plus_taxonomy.csv",
-            "summary_of_distinct_taxa.csv", "table_collapsed_by_taxonomy.csv", "transplant_metric_summary.csv",
-            "transplant_metric_summary_plus_taxa.csv", "OTUs_for_qiime.txt")
-    write.csv(settings(), file = "settings.csv", row.names = FALSE)
-    write.csv(full_table(), file = "raw_table.csv", row.names = FALSE)
-    write.csv(full_nonzero(), file = "fraction_nonzero.csv", row.names = FALSE)
-    write.csv(OTUs_unique_each(), file = "otus_unique_to_each_condition.csv", row.names = FALSE)
-    write.csv(otu_taxonomy(), file = "otu_taxonomy_map.csv", row.names = FALSE)
-    write.csv(taxonomy_added_final_table(), file = "final_table_plus_taxonomy.csv", row.names = FALSE)
-    write.csv(distinct_taxa_summary(), file = "summary_of_distinct_taxa.csv", row.names = FALSE)
-    write.csv(collapsed_taxonomy(), file = "table_collapsed_by_taxonomy.csv", row.names = FALSE)
-    write.csv(metric_table(), file = "transplant_metric_summary.csv", row.names = FALSE)
-    write.csv(metric_table_taxa(), file = "transplant_metric_summary_plus_taxa.csv", row.names = FALSE)
-    write(otus_for_qiime(), sep = "\n", file = "OTUs_for_qiime.txt", row.names = FALSE)
-    zip(zipfile=fname, files=fs)
-    setwd(initial_dir)
-    if(file.exists(paste0(fname, ".zip"))) {file.rename(paste0(fname, ".zip"), fname)}
-  }, contentType = "application/zip")
-
-
-
-
-
-
-
-
-
+  ## Download Handler
+  
+  output$downloadData <- downloadHandler(
+    filename = function() {
+      paste(donor(),
+            "_into_",
+            recipient(),
+            "_output_files",
+            ".zip",
+            sep = "")
+    },
+    content = function(fname) {
+      fs <- c()
+      tmpdir <- tempdir()
+      setwd(tempdir())
+      
+      # Parameter Summary
+      param_summary_path <- 'Parameter_Summary.csv'
+      write.csv(x = param_summary_table(), param_summary_path, row.names = FALSE)
+      
+      # Metric Summary
+      metric_summary_path <- 'Metric_Summary.csv'
+      write.csv(x = metric_summary_table(),
+                metric_summary_path,
+                row.names = FALSE)
+      
+      #Metric Vizualization
+      metric_vis_path <- 'Transplant_Visualization.pdf'
+      save_plot(metric_vis_path,
+                metric_vis(),
+                base_height = 8,
+                base_width = 15)
+      
+      # Donor Unique Table
+      donor_unique_path <- "Donor_Unique_Taxa.csv"
+      write.csv(x = donor_unique_table() , donor_unique_path, row.names = FALSE)
+      
+      # Recipient Unique Table
+      recipient_unique_path <- "Recipient_Unique_Taxa.csv"
+      write.csv(x = recipient_unique_table() ,
+                recipient_unique_path,
+                row.names = FALSE)
+      
+      # Post-FMT Table
+      post_fmt_full_path <- "Post-FMT_Full_Taxa.csv"
+      write.csv(x = post_fmt_table() , post_fmt_full_path, row.names = FALSE)
+      
+      # Donor Engrafted Table
+      donor_engrafted_path <- "Donor_Engrafted_Taxa.csv"
+      write.csv(x = donor_engrafted_table() ,
+                donor_engrafted_path,
+                row.names = FALSE)
+      
+      # Recipient Persisted Table
+      recipient_persisted_path <- "Recipient_Persisted_Taxa.csv"
+      write.csv(x = recipient_persisted_table() ,
+                recipient_persisted_path,
+                row.names = FALSE)
+      
+      # Post-FMT Donor Table
+      post_fmt_donor_path <- "Post-FMT_Donor_Taxa.csv"
+      write.csv(x = post_fmt_donor_table() ,
+                post_fmt_donor_path,
+                row.names = FALSE)
+      
+      # Post-FMT Recipient Table
+      post_fmt_recipient_path <- "Post-FMT_Recipient_Taxa.csv"
+      write.csv(x = post_fmt_recipient_table() ,
+                post_fmt_recipient_path,
+                row.names = FALSE)
+      
+      # Post-FMT Unique Table
+      post_fmt_unique_path <- "Post-FMT_Unique_Taxa.csv"
+      write.csv(x = post_fmt_unique_table() ,
+                post_fmt_unique_path,
+                row.names = FALSE)
+      
+      # Shared Throughout Table
+      shared_throughout_path <- "Shared_Taxa.csv"
+      write.csv(x = shared_throughout_table() ,
+                shared_throughout_path,
+                row.names = FALSE)
+      
+      # PCA Plot
+      pca_plot_path <- "PCA_Plot.pdf"
+      pdf(pca_plot_path, height = 6, width = 8)
+      colors <- c("blue3", "firebrick3", "darkgreen")
+      names(colors) <- c(donor(), recipient(), post_fmt())
+      p <-
+        ggplot2::ggplot(data = data_viz_table(), aes(x = PC1, y = PC2, colour = Compare)) + geom_point(size = 4) + theme_classic() +
+        theme(
+          axis.text = element_text(size = 14, face = "bold"),
+          axis.title = element_text(size = 16, face = "bold"),
+          axis.line.x = element_line(size = 1, color = 'black'),
+          axis.line.y = element_line(size = 1, color = 'black'),
+          axis.text.x = element_text(angle = 0, hjust = 0.5),
+          axis.ticks = element_line(size = 1.5)
+        ) + scale_colour_manual(values = colors)
+      print(p)
+      dev.off()
+      
+      # Percent Explained
+      percent_explained_path <- "PCA_Percent_Explained.csv"
+      write.csv(percent_explained_table(),
+                percent_explained_path,
+                row.names = FALSE)
+      
+      # Plotting_Data
+      plot_data_path <- "Plot_Data_Table.csv"
+      write.csv(data_viz_table(), plot_data_path, row.names = FALSE)
+      
+      fs <-
+        c(
+          param_summary_path,
+          metric_summary_path,
+          metric_vis_path,
+          donor_unique_path,
+          recipient_unique_path,
+          post_fmt_full_path,
+          donor_engrafted_path,
+          recipient_persisted_path,
+          post_fmt_donor_path,
+          post_fmt_recipient_path,
+          post_fmt_unique_path,
+          shared_throughout_path,
+          pca_plot_path,
+          percent_explained_path,
+          plot_data_path
+        )
+      
+      zip(zipfile = fname, files = fs)
+    },
+    contentType = "application/zip"
+  )
+  
+  
+  
+  
+  # Dummy Output
+  #output$test <- renderDataTable({
+  #  sample_abundance_by_depth()
+  #})
+  # output$test2 <- renderPrint({
+  #   data_viz_table()
+  # })
+  
 })

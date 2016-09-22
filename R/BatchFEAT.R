@@ -45,6 +45,7 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
 	colnames(tax_map) <- c("OTU", "Taxon", "Quality_Score")
 	tax_map$OTU <- paste("OTU", tax_map$OTU, sep = "_")
 	
+	
 	tax_check <- TRUE
 	tax_file <- taxonomy
 
@@ -79,14 +80,14 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
                        "Mapping_Filename", "Metadata_Category_FMT",
                        "DonorID", "N_Donor_Samples", "RecipientID", "N_Recipient_Samples", "Post_FMT_ID", "N_Post_FMT", "Rel_Abundance_Filter", "N_OTUs_Relative_Abundance_Filtered",
                        "Fleeting_OTUs_Filter", "N_OTUs_Fleeting_Filtered", "Comparison_Metric",
-                       "N_don", "N_rec", "N_post_fmt", "N_post_fmt_excl",
-                       "N_post_fmt_unique", "N_shared",
+                       "N_Donor", "N_Recipient", "N_P_Total", "N_P_excl",
+                       "N_P_Unique", "N_P_Shared",
                        "N_P_Donor", "D_Engraft", "P_Donor",
                        "N_P_Recipient", "R_Persist", "P_Recipient", "P_Shared", "P_Unique",
                        "D_Engraft_excl", "P_Donor_excl",
-                       "R_Persist_excl", "P_Recipient_excl")
+                       "R_Persist_excl", "P_Recipient_excl", "Engraft")
 					   
-  slim_table_out_items <- c("Comment", "TransplantID", "D_Engraft", "R_Persist", "P_Donor", "P_Recipient", "P_Shared", "P_Unique")
+  slim_table_out_items <- c("Comment", "TransplantID", "D_Engraft", "R_Persist", "P_Donor", "P_Recipient", "P_Shared", "P_Unique", "Engraft")
   slim_table_out <- data.frame(t(slim_table_out_items))
   colnames(slim_table_out) <- make.names(slim_table_out_items)
   slim_table_out <- slim_table_out[-1,]
@@ -148,14 +149,16 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
 	
     cat("Filtering OTUs that are fleeting (are present in less than", percent(min_fraction), "of samples of each group)\n")
     donor_nonzero_table <- filter_function(nonzero_fraction_getter(donor_only_table), min_fraction, donor)
+	print(head(donor_nonzero_table))
+	
     recipient_nonzero_table <- filter_function(nonzero_fraction_getter(recipient_only_table), min_fraction, recipient)
     post_fmt_nonzero_table <- filter_function(nonzero_fraction_getter(post_fmt_only_table), min_fraction, post_fmt)
 	
 	if(!is.null(taxonomy)) {
 		cat("Collapsing OTUs into Taxa...\n")
-		donor_nonzero_table <- collapse_taxonomy(inner_join(donor_nonzero_table, tax_map, by = "OTU"))
-		recipient_nonzero_table <- collapse_taxonomy(inner_join(recipient_nonzero_table, tax_map, by = "OTU"))
-		post_fmt_nonzero_table <- collapse_taxonomy(inner_join(post_fmt_nonzero_table, tax_map, by = "OTU"))
+		donor_nonzero_table <- collapse_taxonomy(dplyr::inner_join(donor_nonzero_table, tax_map, by = "OTU"))
+		recipient_nonzero_table <- collapse_taxonomy(dplyr::inner_join(recipient_nonzero_table, tax_map, by = "OTU"))
+		post_fmt_nonzero_table <- collapse_taxonomy(dplyr::inner_join(post_fmt_nonzero_table, tax_map, by = "OTU"))
 		
 		full_nonzero <- bind_rows(bind_rows(donor_nonzero_table, recipient_nonzero_table), post_fmt_nonzero_table)
 		
@@ -225,12 +228,12 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
 	post_fmt_relative_abundance <- metric_function(post_fmt_only_table, paste("Post_FMT", post_fmt, sep = "_"), comparison)
 	
 	if (!is.null(taxonomy)){
-		relative_abundance_unfiltered <- inner_join(full_join(full_join(donor_relative_abundance[,-3], recipient_relative_abundance[,-3], by = "OTU"), post_fmt_relative_abundance[,-3], by = "OTU"), tax_map, by = "OTU")
+		relative_abundance_unfiltered <- inner_join(full_join(full_join(donor_relative_abundance, recipient_relative_abundance, by = "OTU"), post_fmt_relative_abundance, by = "OTU"), tax_map, by = "OTU")
 		full_relative_abundance <- collapse_taxonomy(inner_join(OTUs_unique_combined, relative_abundance_unfiltered, by = joining_category))
 		full_relative_abundance_excl <- collapse_taxonomy(inner_join(OTUs_unique_combined_excluded, relative_abundance_unfiltered, by = joining_category))
 	
 	} else if (is.null(taxonomy)) {
-		relative_abundance_unfiltered <- full_join(full_join(donor_relative_abundance[,-3], recipient_relative_abundance[,-3], by = "OTU"), post_fmt_relative_abundance[,-3], by = "OTU")
+		relative_abundance_unfiltered <- full_join(full_join(donor_relative_abundance, recipient_relative_abundance, by = "OTU"), post_fmt_relative_abundance, by = "OTU")
 		full_relative_abundance <- inner_join(OTUs_unique_combined, relative_abundance_unfiltered, by = joining_category)
 		full_relative_abundance_excl <- inner_join(OTUs_unique_combined_excluded, relative_abundance_unfiltered, by = joining_category)
 	
@@ -291,6 +294,8 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
 	P_Unique <- N_otus_unique_post_fmt/N_otus_post_fmt_full
 
     cat('Compiling metrics...\n')
+	
+	engraftment <- log(P_Donor/P_Recipient, 2)
 
     Item <- c("Comment", "TransplantID", "Taxonomy_Added", "Taxonomy_Filename", "OTU_Table_Filename", "N_OTUs_starting",
                        "Mapping_Filename", "Metadata_Category_FMT",
@@ -301,7 +306,7 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
                        "N_P_Donor", "D_Engraft", "P_Donor",
                        "N_P_Recipient", "R_Persist", "P_Recipient", "P_Shared", "P_Unique",
                        "D_Engraft_excl", "P_Donor_excl",
-                       "R_Persist_excl", "P_Recipient_excl")
+                       "R_Persist_excl", "P_Recipient_excl", "Engraft")
     Value <- c(comment, transplant_id, tax_check, tax_file, biom_file, n_otus_starting,
                mapping_file, metadata_category,
                donor, n_donor_samples, recipient, n_recipient_samples, post_fmt, n_post_fmt_samples, min_abundance, n_otus_after_relative_filter,
@@ -311,14 +316,14 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
                N_P_Donor, D_Engraft, P_Donor,
                N_P_Recipient, R_Persist, P_Recipient, P_Shared, P_Unique,
                D_Engraft_excluded, P_Donor_excluded,
-               R_Persist_excluded, P_Recipient_excluded)
+               R_Persist_excluded, P_Recipient_excluded, engraftment)
     output_table <- data.frame(Item, Value)
     pre_out <- as.data.frame(t(output_table))
     colnames(pre_out) <- make.names(Item)
     row.names(pre_out) <- NULL
 	
-	slim_items <- c("Comment", "TransplantID", "D_Engraft", "R_Persist", "P_Donor", "P_Recipient", "P_Shared", "P_Unique")
-	slim_values <- c(comment, transplant_id, D_Engraft, R_Persist, P_Donor, P_Recipient, P_Shared, P_Unique)
+	slim_items <- c("Comment", "TransplantID", "D_Engraft", "R_Persist", "P_Donor", "P_Recipient", "P_Shared", "P_Unique", "Engraft")
+	slim_values <- c(comment, transplant_id, D_Engraft, R_Persist, P_Donor, P_Recipient, P_Shared, P_Unique, engraftment)
 	
 	slim_output <- data.frame(slim_items, slim_values)
 	slim_pre_out <- as.data.frame(t(slim_output))
