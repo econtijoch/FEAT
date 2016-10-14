@@ -21,4 +21,5 @@ Depends:
   shinyBS,
   shinyjs,
   tidyr,
-  BiomassWorkflow
+  BiomassWorkflow,
+  cowplot

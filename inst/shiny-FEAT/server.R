@@ -12,6 +12,7 @@ require(reshape2)
 require(BiomassWorkflow)
 require(FEAT)
 require(dplyr)
+require(cowplot)
 
 # source('helper_funcitons.R')
 ggsave <- ggplot2::ggsave
@@ -1818,7 +1819,7 @@ shinyServer(function(input, output, session) {
       
       #Metric Vizualization
       metric_vis_path <- './Transplant_Visualization.pdf'
-      save_plot(metric_vis_path,
+      cowplot::save_plot(metric_vis_path,
                 metric_vis(),
                 base_height = 8,
                 base_width = 15)
