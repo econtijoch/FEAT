@@ -1798,7 +1798,7 @@ shinyServer(function(input, output, session) {
       paste(donor(),
             "_into_",
             recipient(),
-            "_output_files",
+            "_output_data",
             ".zip",
             sep = "")
     },
@@ -1817,12 +1817,6 @@ shinyServer(function(input, output, session) {
                 metric_summary_path,
                 row.names = FALSE)
       
-      #Metric Vizualization
-      metric_vis_path <- './Transplant_Visualization.pdf'
-      cowplot::save_plot(metric_vis_path,
-                metric_vis(),
-                base_height = 8,
-                base_width = 15)
       
       # Donor Unique Table
       donor_unique_path <- "./Donor_Unique_Taxa.csv"
@@ -1874,6 +1868,63 @@ shinyServer(function(input, output, session) {
                 shared_throughout_path,
                 row.names = FALSE)
       
+      # Percent Explained
+      percent_explained_path <- "./PCA_Percent_Explained.csv"
+      write.csv(percent_explained_table(),
+                percent_explained_path,
+                row.names = FALSE)
+      
+      # Plotting_Data
+      plot_data_path <- "./Plot_Data_Table.csv"
+      write.csv(data_viz_table(), plot_data_path, row.names = FALSE)
+      
+      fs <-
+        c(
+          param_summary_path,
+          metric_summary_path,
+          donor_unique_path,
+          recipient_unique_path,
+          post_fmt_full_path,
+          donor_engrafted_path,
+          recipient_persisted_path,
+          post_fmt_donor_path,
+          post_fmt_recipient_path,
+          post_fmt_unique_path,
+          shared_throughout_path,
+          percent_explained_path,
+          plot_data_path
+        )
+		print(fs)
+      
+      zip(zipfile = fname, files = fs)
+	  if (file.exists(paste0(fname, ".zip"))) {
+		  file.rename(paste0(fname, ".zip"), fname)
+	  }
+    }
+  )
+  
+  
+  output$downloadFigures <- downloadHandler(
+    filename = function() {
+      paste(donor(),
+            "_into_",
+            recipient(),
+            "_output_figures",
+            ".zip",
+            sep = "")
+    },
+    content = function(fname) {
+      tmpdir <- tempdir()
+      setwd(tempdir())
+	  print(tempdir())
+      
+	  # Metric Vizualization
+       metric_vis_path <- './Transplant_Visualization.pdf'
+	   cowplot::save_plot(metric_vis_path,
+		                  metric_vis(),
+		                  base_height = 8,
+		                  base_width = 15)	  
+	  
       # PCA Plot
       pca_plot_path <- "./PCA_Plot.pdf"
       pdf(pca_plot_path, height = 6, width = 8)
@@ -1892,33 +1943,17 @@ shinyServer(function(input, output, session) {
       print(p)
       dev.off()
       
-      # Percent Explained
-      percent_explained_path <- "./PCA_Percent_Explained.csv"
-      write.csv(percent_explained_table(),
-                percent_explained_path,
-                row.names = FALSE)
-      
-      # Plotting_Data
-      plot_data_path <- "./Plot_Data_Table.csv"
-      write.csv(data_viz_table(), plot_data_path, row.names = FALSE)
-      
+      # Data Viz Plot
+      data_viz_path <- "./User-generated_plot.pdf"
+      pdf(data_viz_path, height = 6, width = 8)
+      print(data_viz_plot())
+      dev.off()
+	  
       fs <-
         c(
-          param_summary_path,
-          metric_summary_path,
           metric_vis_path,
-          donor_unique_path,
-          recipient_unique_path,
-          post_fmt_full_path,
-          donor_engrafted_path,
-          recipient_persisted_path,
-          post_fmt_donor_path,
-          post_fmt_recipient_path,
-          post_fmt_unique_path,
-          shared_throughout_path,
           pca_plot_path,
-          percent_explained_path,
-          plot_data_path
+		  data_viz_path
         )
 		print(fs)
       
