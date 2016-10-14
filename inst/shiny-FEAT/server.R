@@ -6,17 +6,18 @@ require(DT)
 require(ggplot2)
 require(vegan)
 require(lazyeval)
-require(FEAT)
 require(shinyjs)
 require(stringr)
 require(reshape2)
-require(dplyr)
 require(BiomassWorkflow)
+require(FEAT)
+require(dplyr)
 
 # source('helper_funcitons.R')
 ggsave <- ggplot2::ggsave
 body(ggsave) <- body(ggplot2::ggsave)[-2]
 options(digits = 4)
+Sys.setenv(R_ZIPCMD="/usr/bin/zip")
 
 # Define server logic
 shinyServer(function(input, output, session) {
@@ -331,7 +332,6 @@ shinyServer(function(input, output, session) {
       filtered <-
         normalized[, max_otu_fraction > input$min_OTU_fraction]
     })
-    filtered_table_otu_count <<- ncol(filtered)
     return(filtered)
   })
   
@@ -341,7 +341,7 @@ shinyServer(function(input, output, session) {
     if (is.null(biom_table())) {
       return()
     }
-    return(filtered_table_otu_count)
+    return(ncol(relative()))
   })
   output$num_otus_after_relative_filter <- renderText({
     return(paste(
@@ -1802,79 +1802,79 @@ shinyServer(function(input, output, session) {
             sep = "")
     },
     content = function(fname) {
-      fs <- c()
       tmpdir <- tempdir()
       setwd(tempdir())
+	  print(tempdir())
       
       # Parameter Summary
-      param_summary_path <- 'Parameter_Summary.csv'
+      param_summary_path <- './Parameter_Summary.csv'
       write.csv(x = param_summary_table(), param_summary_path, row.names = FALSE)
       
       # Metric Summary
-      metric_summary_path <- 'Metric_Summary.csv'
+      metric_summary_path <- './Metric_Summary.csv'
       write.csv(x = metric_summary_table(),
                 metric_summary_path,
                 row.names = FALSE)
       
       #Metric Vizualization
-      metric_vis_path <- 'Transplant_Visualization.pdf'
+      metric_vis_path <- './Transplant_Visualization.pdf'
       save_plot(metric_vis_path,
                 metric_vis(),
                 base_height = 8,
                 base_width = 15)
       
       # Donor Unique Table
-      donor_unique_path <- "Donor_Unique_Taxa.csv"
+      donor_unique_path <- "./Donor_Unique_Taxa.csv"
       write.csv(x = donor_unique_table() , donor_unique_path, row.names = FALSE)
       
       # Recipient Unique Table
-      recipient_unique_path <- "Recipient_Unique_Taxa.csv"
+      recipient_unique_path <- "./Recipient_Unique_Taxa.csv"
       write.csv(x = recipient_unique_table() ,
                 recipient_unique_path,
                 row.names = FALSE)
       
       # Post-FMT Table
-      post_fmt_full_path <- "Post-FMT_Full_Taxa.csv"
+      post_fmt_full_path <- "./Post-FMT_Full_Taxa.csv"
       write.csv(x = post_fmt_table() , post_fmt_full_path, row.names = FALSE)
       
       # Donor Engrafted Table
-      donor_engrafted_path <- "Donor_Engrafted_Taxa.csv"
+      donor_engrafted_path <- "./Donor_Engrafted_Taxa.csv"
       write.csv(x = donor_engrafted_table() ,
                 donor_engrafted_path,
                 row.names = FALSE)
       
       # Recipient Persisted Table
-      recipient_persisted_path <- "Recipient_Persisted_Taxa.csv"
+      recipient_persisted_path <- "./Recipient_Persisted_Taxa.csv"
       write.csv(x = recipient_persisted_table() ,
                 recipient_persisted_path,
                 row.names = FALSE)
       
       # Post-FMT Donor Table
-      post_fmt_donor_path <- "Post-FMT_Donor_Taxa.csv"
+      post_fmt_donor_path <- "./Post-FMT_Donor_Taxa.csv"
       write.csv(x = post_fmt_donor_table() ,
                 post_fmt_donor_path,
                 row.names = FALSE)
       
       # Post-FMT Recipient Table
-      post_fmt_recipient_path <- "Post-FMT_Recipient_Taxa.csv"
+      post_fmt_recipient_path <- "./Post-FMT_Recipient_Taxa.csv"
       write.csv(x = post_fmt_recipient_table() ,
                 post_fmt_recipient_path,
                 row.names = FALSE)
       
       # Post-FMT Unique Table
-      post_fmt_unique_path <- "Post-FMT_Unique_Taxa.csv"
+      post_fmt_unique_path <- "./Post-FMT_Unique_Taxa.csv"
       write.csv(x = post_fmt_unique_table() ,
                 post_fmt_unique_path,
                 row.names = FALSE)
       
       # Shared Throughout Table
-      shared_throughout_path <- "Shared_Taxa.csv"
+      shared_throughout_path <- "./Shared_Taxa.csv"
       write.csv(x = shared_throughout_table() ,
                 shared_throughout_path,
                 row.names = FALSE)
       
       # PCA Plot
-      pca_plot_path <- "PCA_Plot.pdf"
+      pca_plot_path <- "./PCA_Plot.pdf"
       pdf(pca_plot_path, height = 6, width = 8)
       colors <- c("blue3", "firebrick3", "darkgreen")
       names(colors) <- c(donor(), recipient(), post_fmt())
@@ -1892,13 +1892,13 @@ shinyServer(function(input, output, session) {
       dev.off()
       
       # Percent Explained
-      percent_explained_path <- "PCA_Percent_Explained.csv"
+      percent_explained_path <- "./PCA_Percent_Explained.csv"
       write.csv(percent_explained_table(),
                 percent_explained_path,
                 row.names = FALSE)
       
       # Plotting_Data
-      plot_data_path <- "Plot_Data_Table.csv"
+      plot_data_path <- "./Plot_Data_Table.csv"
       write.csv(data_viz_table(), plot_data_path, row.names = FALSE)
       
       fs <-
@@ -1919,10 +1919,13 @@ shinyServer(function(input, output, session) {
           percent_explained_path,
           plot_data_path
         )
+		print(fs)
       
       zip(zipfile = fname, files = fs)
-    },
-    contentType = "application/zip"
+	  if (file.exists(paste0(fname, ".zip"))) {
+		  file.rename(paste0(fname, ".zip"), fname)
+	  }
+    }
   )
   
   
