@@ -1451,7 +1451,7 @@ shinyServer(function(input, output, session) {
                        y = MeanAbundance,
                        fill = ShortName
                      )) + geom_bar(color =
-                                     "black", stat = 'identity') + EJC_theme() + scale_fill_manual(name = legend_label, values = EJC_colors) + labs(x = "",
+                                     "black", stat = 'identity') + BiomassWorkflow::EJC_theme() + scale_fill_manual(name = legend_label, values = BiomassWorkflow::EJC_colors) + labs(x = "",
                                                                                                                                                     y = ylabel,
                                                                                                                                                     title = "") + theme(
                                                                                                                                                       legend.position = 'right',
