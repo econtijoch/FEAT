@@ -1974,5 +1974,5 @@ shinyServer(function(input, output, session) {
   # output$test2 <- renderPrint({
   #   data_viz_table()
   # })
-  
+  session$onSessionEnded(function() { stopApp() })
 })
