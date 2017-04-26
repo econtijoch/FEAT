@@ -1362,8 +1362,6 @@ shinyServer(function(input, output, session) {
   
   
   output$click_plot <- renderPlot({
-    if (!is.null(input$id_tax_file)) {
-      if (input$toggle_taxonomy) {
         click <- input$plot_click
         maximum <- max(c(N_Donor(), N_Recipient(), N_P_Total()))
         buffer <- max(c(1, maximum / 5))
@@ -1427,43 +1425,22 @@ shinyServer(function(input, output, session) {
               ylabel <- "Relative Abundance (% of OTUs)\n"
               ylimit <- 100
             } else {
-              ylabel <-
-                "Absolute Abundance \n(ug DNA for each Taxa per mg Feces)\n"
+              ylabel <- "Absolute Abundance \n(ug DNA for each Taxa per mg Feces)\n"
               ylimit <- max(metadata_only()$biomass_ratio)
             }
             
-            i <- grep(input$selected_depth, phylogeny)
-            legend_label <-
-              paste(
-                "Taxon (",
-                phylogeny[i - 2],
-                ".",
-                phylogeny[i - 1],
-                ".",
-                input$selected_depth,
-                ")",
-                sep = ""
-              )
-            plot <-
-              ggplot(data = plot_table,
-                     aes(
-                       x = Condition,
-                       y = MeanAbundance,
-                       fill = ShortName
-                     )) + geom_bar(color =
-                                     "black", stat = 'identity') + BiomassWorkflow::EJC_theme() + scale_fill_manual(name = legend_label, values = BiomassWorkflow::EJC_colors) + labs(x = "",
-                                                                                                                                                    y = ylabel,
-                                                                                                                                                    title = "") + theme(
-                                                                                                                                                      legend.position = 'right',
-                                                                                                                                                      legend.direction = 'vertical',
-                                                                                                                                                      aspect.ratio = 2
-                                                                                                                                                    ) + guides(fill = guide_legend(reverse = TRUE)) + coord_cartesian(ylim = c(0, ylimit))
-            final_output <- plot
+		    if (!is.null(input$id_tax_file)) {
+		      if (input$toggle_taxonomy) {
+				  i <- grep(input$selected_depth, phylogeny)
+				  legend_label <- paste("Taxon (", phylogeny[i - 2], ".", phylogeny[i - 1], ".", input$selected_depth, ")", sep = "")
+				  plot <- ggplot(data = plot_table, aes(x = Condition, y = MeanAbundance, fill = ShortName)) + geom_bar(color = "black", stat = 'identity') + BiomassWorkflow::EJC_theme() + scale_fill_manual(name = legend_label, values = BiomassWorkflow::EJC_colors) + labs(x = "", y = ylabel, title = "") + theme( legend.position = 'right', legend.direction = 'vertical', aspect.ratio = 2 ) + guides(fill = guide_legend(reverse = TRUE)) + coord_cartesian(ylim = c(0, ylimit))
+				  
+				  final_output <- plot
             
-            return(final_output)
           }
         } else {
-          return()
+          plot <- ggplot(data = plot_table, aes(x = Condition, y = MeanAbundance, fill = OTU_ID)) + geom_bar(color = "black", stat = 'identity') + BiomassWorkflow::EJC_theme() + scale_fill_manual(values = BiomassWorkflow::EJC_colors) + labs(x = "", y = ylabel, title = "") + theme( legend.position = 'right', legend.direction = 'vertical', aspect.ratio = 2 ) + guides(fill = guide_legend(reverse = TRUE)) + coord_cartesian(ylim = c(0, ylimit))
+		  final_output <- plot
         }
       } else {
         return()
@@ -1471,6 +1448,7 @@ shinyServer(function(input, output, session) {
     } else {
       return()
     }
+	return(final_output)
   })
   
   ########
