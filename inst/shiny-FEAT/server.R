@@ -36,7 +36,7 @@ shinyServer(function(input, output, session) {
       biom_only <- as.data.frame(t(data))
       raw_table_otu_count <<- ncol(biom_only)
       colnames(biom_only) <-
-        paste("OTU", colnames(biom_only), sep = "_")
+        makelnames(paste("OTU", colnames(biom_only), sep = "_"), unique = T)
       biom_only$X.SampleID <-
         as.character(row.names(biom_only))
       row.names(biom_only) <- NULL
