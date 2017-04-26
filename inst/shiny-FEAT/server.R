@@ -423,7 +423,9 @@ shinyServer(function(input, output, session) {
 
 	      })
 	  } else {
-		  split_tax <- abundance_selected_melted()
+        grouped <- dplyr::group_by(abundance_selected_melted(), X.SampleID, "OTU_ID")
+        collapsed <- dplyr::summarize(grouped, abundance = sum(value))
+		split_tax <- collapsed
 	  }
 	  split_tax$Abundance_Type <- input$abundance_type    
     return(split_tax)
