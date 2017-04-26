@@ -1281,41 +1281,58 @@ colnames(output) <-
   })
   
   donor_engrafted_table <- eventReactive(input$go, {
-    output <-
-      donor_unique_table()[donor_unique_table()[["Taxon"]] %in% P_Donor_table()[, 1],]
+	  if (input$toggle_taxonomy) {
+	  	output <- donor_unique_table()[donor_unique_table()[["Taxon"]] %in% P_Donor_table()[, 1],]
+	  } else {
+	  	output <- donor_unique_table()[donor_unique_table()[["OTU_ID"]] %in% P_Donor_table()[, 1],]
+	  }
+	
     return(output)
   })
   
   recipient_persisted_table <- eventReactive(input$go, {
-    output <-
-      recipient_unique_table()[recipient_unique_table()[["Taxon"]] %in% P_Recipient_table()[, 1],]
+    if (input$toggle_taxonomy) {
+		output <- recipient_unique_table()[recipient_unique_table()[["Taxon"]] %in% P_Recipient_table()[, 1],]
+	} else {
+		output <- recipient_unique_table()[recipient_unique_table()[["OTU_ID"]] %in% P_Recipient_table()[, 1],]
+	}
     return(output)
   })
   
   post_fmt_donor_table <- eventReactive(input$go, {
-    output <-
-      post_fmt_table()[post_fmt_table()[["Taxon"]] %in% P_Donor_table()[, 1],]
+	  if (input$toggle_taxoomy) {
+		  output <- post_fmt_table()[post_fmt_table()[["Taxon"]] %in% P_Donor_table()[, 1],]
+	  } else {
+		  output <- post_fmt_table()[post_fmt_table()[["OTU_ID"]] %in% P_Donor_table()[, 1],]
+	  }
     return(output)
   })
   post_fmt_recipient_table <- eventReactive(input$go, {
-    output <-
-      post_fmt_table()[post_fmt_table()[["Taxon"]] %in% P_Recipient_table()[, 1],]
+	  if (input$toggle_taxoomy) {
+		output <- post_fmt_table()[post_fmt_table()[["Taxon"]] %in% P_Recipient_table()[, 1],]
+	  } else {
+	  	output <- post_fmt_table()[post_fmt_table()[["OTU_ID"]] %in% P_Recipient_table()[, 1],]
+	  }
     return(output)
   })
   post_fmt_unique_table <- eventReactive(input$go, {
-    output <-
-      post_fmt_table()[post_fmt_table()[["Taxon"]] %in% post_fmt_unique()[, 1],]
+	  if (input$toggle_taxonomy) {
+		  output <- post_fmt_table()[post_fmt_table()[["Taxon"]] %in% post_fmt_unique()[, 1],]
+	  } else {
+		  output <- post_fmt_table()[post_fmt_table()[["OTU_ID"]] %in% post_fmt_unique()[, 1],]
+	  }
     return(output)
   })
   shared_throughout_table <- eventReactive(input$go, {
-    output <-
-      post_fmt_table()[post_fmt_table()[["Taxon"]] %in% shared_throughout()[, 1],]
+	  if (input$toggle_taxonomy) {
+		  output <- post_fmt_table()[post_fmt_table()[["Taxon"]] %in% shared_throughout()[, 1],]
+	  } else {
+		  output <- post_fmt_table()[post_fmt_table()[["OTU_ID"]] %in% shared_throughout()[, 1],]
+	  }
     return(output)
   })
   
   output$click_info <- renderDataTable({
-    if (!is.null(input$id_tax_file)) {
-      if (input$toggle_taxonomy) {
         click <- input$plot_click
         maximum <- max(c(N_Donor(), N_Recipient(), N_P_Total()))
         buffer <- max(c(1, maximum / 5))
@@ -1377,12 +1394,6 @@ colnames(output) <-
         } else {
           return()
         }
-      } else {
-        return()
-      }
-    } else {
-      return()
-    }
     
   },
   options = list(
