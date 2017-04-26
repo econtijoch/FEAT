@@ -403,24 +403,29 @@ shinyServer(function(input, output, session) {
       "Species")
   
   abundance_selected_taxonomy <- eventReactive(input$go, {
-    withProgress(message = 'Collapsing by Taxonomy', value = 0.5, {
-      tax_added <-
-        dplyr::inner_join(abundance_selected_melted(), taxonomy(), by = "OTU_ID")
-      incProgress(0.3)
-      grouped <- dplyr::group_by(tax_added, X.SampleID, Taxon)
-      collapsed <- dplyr::summarize(grouped, abundance = sum(value))
-      split_tax <-
-        tidyr::separate(
-          collapsed,
-          Taxon,
-          phylogeny,
-          sep = ";.__",
-          remove = F,
-          fill = 'right'
-        )
-      split_tax$Kingdom <- "Bacteria"
-      split_tax$Abundance_Type <- input$abundance_type
-    })
+	  if (input$toggle_taxonomy) {
+	      withProgress(message = 'Collapsing by Taxonomy', value = 0.5, {
+	        tax_added <-
+	          dplyr::inner_join(abundance_selected_melted(), taxonomy(), by = "OTU_ID")
+	        incProgress(0.3)
+	        grouped <- dplyr::group_by(tax_added, X.SampleID, Taxon)
+	        collapsed <- dplyr::summarize(grouped, abundance = sum(value))
+	        split_tax <-
+	          tidyr::separate(
+	            collapsed,
+	            Taxon,
+	            phylogeny,
+	            sep = ";.__",
+	            remove = F,
+	            fill = 'right'
+	          )
+	        split_tax$Kingdom <- "Bacteria"
+
+	      })
+	  } else {
+		  split_tax <- abundance_selected_melted()
+	  }
+	  split_tax$Abundance_Type <- input$abundance_type    
     return(split_tax)
   })
   
@@ -432,39 +437,48 @@ shinyServer(function(input, output, session) {
   
   # Create a table of per-sample-per-taxa abundances at the selected depth
   sample_abundance_by_depth <- reactive({
-    i <- grep(input$selected_depth, phylogeny)
-    label <-
-      paste(phylogeny[i - 1], input$selected_depth, sep = ".")
-    dots <- lapply(phylogeny[1:i], as.symbol)
-    grouped1 <-
-      dplyr::group_by(abundance_selected_taxonomy(), X.SampleID)
-    grouped2 <- dplyr::group_by_(grouped1, .dots = dots, add = T)
-    table <-
-      dplyr::summarize(grouped2, abundance = sum(abundance))
-    if (i > 2) {
-      table$short_label <-
-        paste(table[[phylogeny[i - 2]]], table[[phylogeny[i - 1]]], table[[phylogeny[i]]], sep = ".")
-      table <-
-        tidyr::unite_(table,
-                      'long_label',
-                      phylogeny[1:i],
-                      sep = ".",
-                      remove = F)
-    } else if (i > 1) {
-      table$short_label <-
-        paste(table[[phylogeny[i - 1]]], table[[phylogeny[i]]], sep = ".")
-      table <-
-        tidyr::unite_(table,
-                      'long_label',
-                      phylogeny[1:i],
-                      sep = ".",
-                      remove = F)
-    } else {
-      table$short_label <- table[[phylogeny[i]]]
-      table$long_label <- table[[phylogeny[i]]]
-    }
-    table$Abundance_Type <- abundance_type()
-    table$Depth <- phylogeny[i]
+	  if (input$toggle_taxonomy) {
+	      i <- grep(input$selected_depth, phylogeny)
+	      label <-
+	        paste(phylogeny[i - 1], input$selected_depth, sep = ".")
+	      dots <- lapply(phylogeny[1:i], as.symbol)
+	      grouped1 <-
+	        dplyr::group_by(abundance_selected_taxonomy(), X.SampleID)
+	      grouped2 <- dplyr::group_by_(grouped1, .dots = dots, add = T)
+	      table <-
+	        dplyr::summarize(grouped2, abundance = sum(abundance))
+	      if (i > 2) {
+	        table$short_label <-
+	          paste(table[[phylogeny[i - 2]]], table[[phylogeny[i - 1]]], table[[phylogeny[i]]], sep = ".")
+	        table <-
+	          tidyr::unite_(table,
+	                        'long_label',
+	                        phylogeny[1:i],
+	                        sep = ".",
+	                        remove = F)
+	      } else if (i > 1) {
+	        table$short_label <-
+	          paste(table[[phylogeny[i - 1]]], table[[phylogeny[i]]], sep = ".")
+	        table <-
+	          tidyr::unite_(table,
+	                        'long_label',
+	                        phylogeny[1:i],
+	                        sep = ".",
+	                        remove = F)
+	      } else {
+	        table$short_label <- table[[phylogeny[i]]]
+	        table$long_label <- table[[phylogeny[i]]]
+	      }
+	      table$Abundance_Type <- abundance_type()
+	      table$Depth <- phylogeny[i]
+	  } else {
+		  table <- abundance_selected_taxonomy()
+		  table$short_label <- table$OTU_ID
+		  table$long_label <- table$OTU_ID
+		  table$Abundance_Type <- abundance_type()
+		  table$Depth <- "OTU"
+	  }
+    
     return(table)
   })
   
