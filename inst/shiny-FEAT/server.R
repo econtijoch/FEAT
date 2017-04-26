@@ -1193,8 +1193,13 @@ shinyServer(function(input, output, session) {
       )
     output <- dplyr::bind_rows(donor_output, missing_table)
     output$Condition <- "Donor"
-    colnames(output) <-
+    if (input$toggle_taxonomy) {
+colnames(output) <-
       c("Taxon", "ShortName", "MeanAbundance", "Condition")
+} else {
+colnames(output) <- 
+      c("OTU_ID", "ShortName", "MeanAbundance", "Condition")
+}
     output$MeanAbundance <- round(output$MeanAbundance, 4)
     return(output)
   })
@@ -1225,8 +1230,13 @@ shinyServer(function(input, output, session) {
       )
     output <- dplyr::bind_rows(recipient_output, missing_table)
     output$Condition <- "Recipient"
-    colnames(output) <-
+    if (input$toggle_taxonomy) {
+colnames(output) <-
       c("Taxon", "ShortName", "MeanAbundance", "Condition")
+} else {
+colnames(output) <- 
+      c("OTU_ID", "ShortName", "MeanAbundance", "Condition")
+}
     output$MeanAbundance <- round(output$MeanAbundance, 4)
     return(output)
   })
@@ -1259,8 +1269,13 @@ shinyServer(function(input, output, session) {
     
     output <- dplyr::bind_rows(post_fmt_output, missing_table)
     output$Condition <- "Post-FMT"
-    colnames(output) <-
+    if (input$toggle_taxonomy) {
+colnames(output) <-
       c("Taxon", "ShortName", "MeanAbundance", "Condition")
+} else {
+colnames(output) <- 
+      c("OTU_ID", "ShortName", "MeanAbundance", "Condition")
+}
     output$MeanAbundance <- round(output$MeanAbundance, 4)
     return(output)
   })
