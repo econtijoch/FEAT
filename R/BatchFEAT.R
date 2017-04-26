@@ -400,5 +400,5 @@ batchFEAT <- function(biom_file, mapping_file, FMT_pairs, input_params, output_d
   cat("***Finished***\n")
   cat(paste("Total Time: ", round(elapsed, digits = 2), " seconds\n", sep = ""))
   
-  return(slim_output = slim_table_out, full_output = table_out)
+  return(list(slim_output = slim_table_out, full_output = table_out))
 }
