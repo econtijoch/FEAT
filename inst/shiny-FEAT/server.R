@@ -1300,7 +1300,7 @@ colnames(output) <-
   })
   
   post_fmt_donor_table <- eventReactive(input$go, {
-	  if (input$toggle_taxoomy) {
+	  if (input$toggle_taxonomy) {
 		  output <- post_fmt_table()[post_fmt_table()[["Taxon"]] %in% P_Donor_table()[, 1],]
 	  } else {
 		  output <- post_fmt_table()[post_fmt_table()[["OTU_ID"]] %in% P_Donor_table()[, 1],]
@@ -1308,7 +1308,7 @@ colnames(output) <-
     return(output)
   })
   post_fmt_recipient_table <- eventReactive(input$go, {
-	  if (input$toggle_taxoomy) {
+	  if (input$toggle_taxonomy) {
 		output <- post_fmt_table()[post_fmt_table()[["Taxon"]] %in% P_Recipient_table()[, 1],]
 	  } else {
 	  	output <- post_fmt_table()[post_fmt_table()[["OTU_ID"]] %in% P_Recipient_table()[, 1],]
