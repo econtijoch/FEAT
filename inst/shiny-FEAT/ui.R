@@ -9,10 +9,8 @@ shinyUI(
     title = "FMT Efficacy Analysis Toolkit v3.0",
     windowTitle = "FMT Efficacy Analysis Toolkit (FEAT)",
     position = 'static-top',
-    
-    
-    tabPanel(
-      "Home",
+
+    tabPanel(id = 'test', title = "Home",
       h2("Home"),
       tags$style(
         type = "text/css",
@@ -53,11 +51,7 @@ shinyUI(
         "Click through the sidebar to add inputs and change the parameters for analyzing the data."
       )
       ),
-    
-    "Input & Data Pre-Processing",
-    
-    tabPanel(
-      "Inputs/Settings",
+    tabPanel(title = "Inputs/Settings",
       h2('Select Inputs/Settings'),
       fluidRow(
         column(3, offset = 1,
@@ -97,7 +91,7 @@ shinyUI(
             "A .txt file that contains the taxonomy associated with each OTU ID. This can be from the greengenes reference, for example, or from the output of the assign_taxonomy.py function in QIIME."
           )
         ))
-        
+
       ),
       hr(),
       fluidRow(
@@ -231,8 +225,7 @@ shinyUI(
       )
     )
     ,
-    tabPanel(
-      'Transplant Metrics',
+    tabPanel(title = 'Transplant Metrics',
       fluidRow(
         column(3, h4("Donor"),
                textOutput("donor_id")),
@@ -435,10 +428,9 @@ shinyUI(
       )),
       hr(),
       dataTableOutput("click_info")
-      
+
     ),
-    tabPanel(
-      'Data Visualization',
+    tabPanel(title = 'Data Visualization',
       hr(),
       fluidRow(column(12,
                       wellPanel(
@@ -500,7 +492,7 @@ shinyUI(
                       plotOutput("data_plot")),
                column(6,
                       plotOutput('spree_plot'))),
-      
+
       hr(),
       fluidRow(
         column(2, offset = 1,
@@ -521,10 +513,10 @@ shinyUI(
       ),
       hr(),
        dataTableOutput('donor_unique_table')
-      
+
       # verbatimTextOutput('test2')
     ),
-    tabPanel("Downloads",
+    tabPanel(title = "Downloads",
              fluidRow(column(8,
                              wellPanel(
                                fluidRow(
